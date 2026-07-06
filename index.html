@@ -148,6 +148,10 @@
                         <span>總權重百分比:</span>
                         <span id="weight-total" class="text-green-600 font-bold">100%</span>
                     </div>
+                    <button onclick="openWeightModal()" class="w-full mt-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-1.5 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-gears text-blue-600"></i>
+                        <span class="font-semibold text-slate-700">⚙️ 管理自訂項目與權重</span>
+                    </button>
                 </div>
             </div>
         </aside>
@@ -454,7 +458,7 @@
                     <p>1. 互評個人得分 = (團隊貢獻度 + 配合溝通 + 準時交付) ÷ 3</p>
                     <p id="grades-formula-desc" class="font-medium">2. 小組報告最終實得 = 小組多項目報告平均分 <span class="text-amber-600 font-bold">*(當前已設定：都不使用，直接繼承報告基分)*</span></p>
                     <p class="text-2xs text-blue-700">2a. 若啟用「平均貢獻度係數」：貢獻係數 = 個人互評得分 ÷ 小組互評總平均分，且係數會限制在 0.80（下限）～1.20（上限）之間，超出範圍一律以邊界值採計。</p>
-                    <p>3. 學期加權成績 = (歷史出席率 × <span class="formula-weight-att">20</span>%) + (小組報告最終實得 × <span class="formula-weight-pres">40</span>%) + (發言分數 × <span class="formula-weight-part">40</span>%)</p>
+                    <p id="grades-total-formula-desc">3. 學期加權成績 = (歷史出席率 × <span class="formula-weight-att">20</span>%) + (小組報告最終實得 × <span class="formula-weight-pres">40</span>%) + (發言分數 × <span class="formula-weight-part">40</span>%)</p>
                 </div>
 
                 <div class="overflow-x-auto border border-gray-100 rounded-xl" id="grades-table-wrapper">
@@ -690,6 +694,80 @@
             </div>
             <div class="flex justify-end pt-4 border-t mt-4">
                 <button onclick="closeAttendanceHistoryModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 彈出視窗：管理自訂項目與權重 Modal -->
+    <div id="weight-management-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 mx-4 animate-in fade-in zoom-in-95 duration-200">
+            <div class="flex items-center justify-between border-b pb-3 mb-4">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-gears text-blue-600"></i>
+                    <span>評分項目與加權比管理</span>
+                </h3>
+                <button onclick="closeWeightModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="space-y-4 max-h-[380px] overflow-y-auto pr-1 text-xs">
+                <!-- 系統內建項目 -->
+                <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <h4 class="font-bold text-gray-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-sliders text-blue-600"></i>
+                        <span>系統內建項目權重</span>
+                    </h4>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                            <span class="font-bold text-gray-700">出席得分</span>
+                            <div class="flex items-center space-x-1.5">
+                                <input type="number" id="modal-w-att" min="0" max="100" oninput="calcModalTotal()" class="w-14 text-center border rounded px-1.5 py-1 font-bold font-mono text-sm focus:ring-1 focus:ring-blue-500">
+                                <span class="text-gray-500 font-bold">%</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                            <span class="font-bold text-gray-700">小組報告</span>
+                            <div class="flex items-center space-x-1.5">
+                                <input type="number" id="modal-w-pres" min="0" max="100" oninput="calcModalTotal()" class="w-14 text-center border rounded px-1.5 py-1 font-bold font-mono text-sm focus:ring-1 focus:ring-blue-500">
+                                <span class="text-gray-500 font-bold">%</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                            <span class="font-bold text-gray-700">課堂發言</span>
+                            <div class="flex items-center space-x-1.5">
+                                <input type="number" id="modal-w-part" min="0" max="100" oninput="calcModalTotal()" class="w-14 text-center border rounded px-1.5 py-1 font-bold font-mono text-sm focus:ring-1 focus:ring-blue-500">
+                                <span class="text-gray-500 font-bold">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 自訂項目列表 -->
+                <div class="space-y-3 bg-indigo-50/40 p-4 rounded-xl border border-indigo-50/60">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-gray-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus-minus text-indigo-600"></i>
+                            <span>自訂評分項目</span>
+                        </h4>
+                        <button onclick="addCustomWeightItem()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg text-2xs transition flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-plus"></i><span>新增項目</span>
+                        </button>
+                    </div>
+                    <div id="modal-custom-list" class="space-y-2.5">
+                        <!-- 動態生成自訂項目列 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 總分統計與按鈕 -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t mt-4 text-xs">
+                <div class="font-bold text-gray-700 flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    <span>總權重百分比：</span>
+                    <span id="modal-w-total" class="text-green-600 font-bold font-mono text-sm">100%</span>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeWeightModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition font-medium">取消</button>
+                    <button id="modal-w-save" onclick="saveWeightsSetting()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm">儲存設定</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1825,6 +1903,8 @@
 
             const projects = course.projects || [];
             const peerEvalMode = course.peerEvalMode || "none";
+            const customWeights = course.customWeights || {};
+            const customNames = Object.keys(customWeights);
 
             // 即時更新成績說明區的公式文字描述
             const formulaDesc = document.getElementById('grades-formula-desc');
@@ -1834,6 +1914,15 @@
                 } else {
                     formulaDesc.innerHTML = `2. 小組報告最終實得 = 小組多項目報告平均分 <span class="text-amber-600 font-bold">*(當前已設定：都不使用，直接繼承報告基分)*</span>`;
                 }
+            }
+
+            const totalFormulaDesc = document.getElementById('grades-total-formula-desc');
+            if (totalFormulaDesc) {
+                let text = `3. 學期加權成績 = (歷史出席率 × <span class="formula-weight-att">${course.weights.att}</span>%) + (小組報告最終實得 × <span class="formula-weight-pres">${course.weights.pres}</span>%) + (發言分數 × <span class="formula-weight-part">${course.weights.part}</span>%)`;
+                customNames.forEach(name => {
+                    text += ` + (${name} × ${customWeights[name]}%)`;
+                });
+                totalFormulaDesc.innerHTML = text;
             }
 
             // 計算各小組的「組內互評平均分」
@@ -1889,9 +1978,7 @@
                 if (peerEvalMode === "average") {
                     if (s.group && s.group !== "未分組" && groupPeerAverages[s.group] > 0) {
                         const groupAvg = groupPeerAverages[s.group];
-                        // 個人貢獻係數 = 個人平均貢獻度 ÷ 小組平均貢獻度
                         contributionRaw = personalPeerScore / groupAvg;
-                        // 教師常用限制規則：最高係數1.2，最低係數0.8，超出範圍一律以邊界值採計
                         contributionCoefficient = Math.min(CONTRIBUTION_COEFFICIENT_MAX, Math.max(CONTRIBUTION_COEFFICIENT_MIN, contributionRaw));
                         contributionInfo = getContributionLabel(contributionRaw);
                         finalProjectScore = Math.min(100, projectBaseAvg * contributionCoefficient);
@@ -1905,10 +1992,23 @@
                 // 4. 發言得分計算
                 const partScore = Math.min(100, (s.bonusCount || 0) * 5);
 
+                // 4.5 自訂項目分數計算
+                if (!s.customScores) s.customScores = {};
+                let customWeightedSum = 0;
+                const customScoresMap = {};
+                customNames.forEach(name => {
+                    const score = s.customScores[name] !== undefined ? s.customScores[name] : "";
+                    customScoresMap[name] = score;
+                    
+                    const numericScore = (score === "" || isNaN(score)) ? 0 : Number(score);
+                    customWeightedSum += numericScore * (customWeights[name] / 100);
+                });
+
                 // 5. 最終學期加權成績公式計算
                 const finalGrade = (attScore * (course.weights.att / 100)) + 
                                    (finalProjectScore * (course.weights.pres / 100)) + 
-                                   (partScore * (course.weights.part / 100));
+                                   (partScore * (course.weights.part / 100)) +
+                                   customWeightedSum;
 
                 return {
                     original: s,
@@ -1928,6 +2028,7 @@
                     projectWeighted: projectWeighted,
                     bonusCount: s.bonusCount || 0,
                     partScore: partScore,
+                    customScores: customScoresMap,
                     finalGrade: finalGrade
                 };
             });
@@ -1938,6 +2039,10 @@
                     const projName = gradesSortField.replace('proj_', '');
                     valA = a.original.presentationScores?.[projName] ?? -1;
                     valB = b.original.presentationScores?.[projName] ?? -1;
+                } else if (gradesSortField.startsWith('cust_')) {
+                    const custName = gradesSortField.replace('cust_', '');
+                    valA = a.customScores?.[custName] !== "" ? Number(a.customScores[custName]) : -1;
+                    valB = b.customScores?.[custName] !== "" ? Number(b.customScores[custName]) : -1;
                 } else {
                     valA = a[gradesSortField];
                     valB = b[gradesSortField];
@@ -1973,6 +2078,9 @@
                             <th onclick="sortGrades('projectWeighted')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-indigo-50/70 whitespace-nowrap">報告加權 (${course.weights.pres}%) ${getSortIcon('projectWeighted')}</th>
                             <th onclick="sortGrades('bonusCount')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center whitespace-nowrap">發言次數 ${getSortIcon('bonusCount')}</th>
                             <th onclick="sortGrades('partScore')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-amber-50/60 whitespace-nowrap">發言得分 (${course.weights.part}%) ${getSortIcon('partScore')}</th>
+                            ${customNames.map(name => `
+                                <th onclick="sortGrades('cust_${name}')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-violet-50/50 whitespace-nowrap">${name} (${customWeights[name]}%) ${getSortIcon('cust_' + name)}</th>
+                            `).join('')}
                             <th onclick="sortGrades('finalGrade')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-right text-sm text-blue-900 font-bold whitespace-nowrap">學期總加權成績 ${getSortIcon('finalGrade')}</th>
                         </tr>
                     </thead>
@@ -2005,6 +2113,14 @@
                         <td class="px-4 py-2.5 text-center font-mono font-bold bg-indigo-50/30">${item.projectWeighted.toFixed(1)}</td>
                         <td class="px-4 py-2.5 text-center font-mono">${s.bonusCount || 0} 次</td>
                         <td class="px-4 py-2.5 text-center font-mono font-bold bg-amber-50/40">${item.partScore}</td>
+                        ${customNames.map(name => `
+                            <td class="px-4 py-2.5 text-center bg-violet-50/10 whitespace-nowrap animate-pulse-slow">
+                                <input type="number" min="0" max="100" placeholder="未登"
+                                       class="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-center font-mono focus:ring-1 focus:ring-violet-500 focus:outline-none bg-white text-2xs font-bold text-violet-950"
+                                       value="${item.customScores[name] !== undefined ? item.customScores[name] : ''}"
+                                       onchange="updateCustomScore('${s.id}', '${name}', this.value)">
+                            </td>
+                        `).join('')}
                         <td class="px-4 py-2.5 text-right font-mono font-extrabold text-xs ${isWarning ? 'text-red-600' : 'text-blue-700'}">
                             ${item.finalGrade.toFixed(1)} 分
                         </td>
@@ -2016,7 +2132,175 @@
             wrapper.innerHTML = tableHtml;
         }
 
-        // --- 權重聯動即時調整功能 ---
+        // --- 6.5 自訂分數即時登記處理 ---
+        function updateCustomScore(studentId, customName, valStr) {
+            const course = getActiveCourse();
+            const student = course.students.find(s => s.id === studentId);
+            if (student) {
+                if (!student.customScores) student.customScores = {};
+                
+                const val = valStr.trim();
+                if (val === "") {
+                    delete student.customScores[customName];
+                } else {
+                    const num = parseInt(val);
+                    if (isNaN(num) || num < 0 || num > 100) {
+                        showToast("分數必須在 0 ~ 100 之間！", "error");
+                        renderGradesTable(); // 恢復原值
+                        return;
+                    }
+                    student.customScores[customName] = num;
+                }
+                saveAllDataToStorage();
+                renderGradesTable();
+            }
+        }
+
+        // --- 自訂評分項目與權重管理 Modal 邏輯 ---
+        function openWeightModal() {
+            const course = getActiveCourse();
+            document.getElementById('modal-w-att').value = course.weights.att;
+            document.getElementById('modal-w-pres').value = course.weights.pres;
+            document.getElementById('modal-w-part').value = course.weights.part;
+            
+            const customList = document.getElementById('modal-custom-list');
+            customList.innerHTML = "";
+            
+            const customWeights = course.customWeights || {};
+            Object.keys(customWeights).forEach(name => {
+                addCustomWeightRowHTML(name, customWeights[name]);
+            });
+            
+            calcModalTotal();
+            document.getElementById('weight-management-modal').classList.remove('hidden');
+        }
+
+        function closeWeightModal() {
+            document.getElementById('weight-management-modal').classList.add('hidden');
+        }
+
+        function addCustomWeightRowHTML(name = "", weight = 0) {
+            const customList = document.getElementById('modal-custom-list');
+            const row = document.createElement('div');
+            row.className = "flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-100 gap-2 custom-weight-row";
+            row.innerHTML = `
+                <input type="text" placeholder="項目名稱 (如: 期中考)" value="${name}" class="w-1/2 border rounded px-2 py-1 font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 custom-name-input">
+                <div class="flex items-center space-x-1.5 shrink-0">
+                    <input type="number" min="0" max="100" placeholder="0" value="${weight}" oninput="calcModalTotal()" class="w-14 text-center border rounded px-1.5 py-1 font-bold font-mono text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 custom-val-input">
+                    <span class="text-gray-500 font-bold">%</span>
+                    <button onclick="this.closest('.custom-weight-row').remove(); calcModalTotal();" class="text-gray-400 hover:text-red-500 p-1 rounded transition text-xs" title="刪除項目">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `;
+            customList.appendChild(row);
+        }
+
+        function addCustomWeightItem() {
+            addCustomWeightRowHTML("", 0);
+            calcModalTotal();
+            const rows = document.querySelectorAll('.custom-weight-row');
+            if (rows.length > 0) {
+                rows[rows.length - 1].querySelector('.custom-name-input').focus();
+            }
+        }
+
+        function calcModalTotal() {
+            const att = parseInt(document.getElementById('modal-w-att').value) || 0;
+            const pres = parseInt(document.getElementById('modal-w-pres').value) || 0;
+            const part = parseInt(document.getElementById('modal-w-part').value) || 0;
+            
+            let customTotal = 0;
+            const valInputs = document.querySelectorAll('.custom-val-input');
+            valInputs.forEach(input => {
+                customTotal += parseInt(input.value) || 0;
+            });
+            
+            const grandTotal = att + pres + part + customTotal;
+            const totalEl = document.getElementById('modal-w-total');
+            const saveBtn = document.getElementById('modal-w-save');
+            
+            totalEl.innerText = `${grandTotal}%`;
+            
+            if (grandTotal === 100) {
+                totalEl.className = "text-green-600 font-bold text-sm font-mono";
+                saveBtn.disabled = false;
+                saveBtn.className = "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm cursor-pointer";
+            } else {
+                totalEl.className = "text-red-500 animate-pulse font-bold text-sm font-mono";
+                saveBtn.disabled = true;
+                saveBtn.className = "px-4 py-2 bg-gray-300 text-gray-500 rounded-lg transition font-medium shadow-none cursor-not-allowed";
+            }
+        }
+
+        function saveWeightsSetting() {
+            const att = parseInt(document.getElementById('modal-w-att').value) || 0;
+            const pres = parseInt(document.getElementById('modal-w-pres').value) || 0;
+            const part = parseInt(document.getElementById('modal-w-part').value) || 0;
+            
+            const customRows = document.querySelectorAll('.custom-weight-row');
+            const newCustomWeights = {};
+            let hasError = false;
+            
+            customRows.forEach(row => {
+                const nameInput = row.querySelector('.custom-name-input');
+                const valInput = row.querySelector('.custom-val-input');
+                
+                const name = nameInput.value.trim();
+                const weight = parseInt(valInput.value) || 0;
+                
+                if (name === "") {
+                    showToast("自訂項目名稱不可為空！", "error");
+                    nameInput.focus();
+                    hasError = true;
+                    return;
+                }
+                
+                if (name === "出席" || name === "報告" || name === "發言") {
+                    showToast("名稱「" + name + "」與系統項目重複，請換個名字！", "error");
+                    nameInput.focus();
+                    hasError = true;
+                    return;
+                }
+                
+                if (newCustomWeights[name] !== undefined) {
+                    showToast("自訂項目名稱「" + name + "」重複！", "error");
+                    nameInput.focus();
+                    hasError = true;
+                    return;
+                }
+                
+                newCustomWeights[name] = weight;
+            });
+            
+            if (hasError) return;
+            
+            const course = getActiveCourse();
+            course.weights = { att, pres, part };
+            
+            const oldCustomKeys = Object.keys(course.customWeights || {});
+            const newCustomKeys = Object.keys(newCustomWeights);
+            
+            course.students.forEach(s => {
+                if (s.customScores) {
+                    oldCustomKeys.forEach(key => {
+                        if (newCustomKeys.indexOf(key) === -1) {
+                            delete s.customScores[key];
+                        }
+                    });
+                }
+            });
+            
+            course.customWeights = newCustomWeights;
+            
+            saveAllDataToStorage();
+            closeWeightModal();
+            syncWeightsUI();
+            refreshCurrentTab();
+            showToast("權重與評分項目設定已更新並存檔！", "success");
+        }
+
+        // --- 6.8 權重聯動即時調整功能 ---
         function syncWeightsUI() {
             const course = getActiveCourse();
             document.getElementById('weight-att').value = course.weights.att;
@@ -2030,13 +2314,32 @@
             document.querySelectorAll('.formula-weight-att').forEach(el=>el.innerText = course.weights.att);
             document.querySelectorAll('.formula-weight-pres').forEach(el=>el.innerText = course.weights.pres);
             document.querySelectorAll('.formula-weight-part').forEach(el=>el.innerText = course.weights.part);
+            
+            let customTotal = 0;
+            const customWeights = course.customWeights || {};
+            Object.values(customWeights).forEach(w => customTotal += w);
+            const grandTotal = course.weights.att + course.weights.pres + course.weights.part + customTotal;
+            
+            const totalEl = document.getElementById('weight-total');
+            totalEl.innerText = `${grandTotal}%`;
+            if (grandTotal === 100) {
+                totalEl.className = "text-green-600 font-bold";
+            } else {
+                totalEl.className = "text-red-500 animate-pulse font-bold";
+            }
         }
 
         function updateWeights() {
             const att = parseInt(document.getElementById('weight-att').value);
             const pres = parseInt(document.getElementById('weight-pres').value);
             const part = parseInt(document.getElementById('weight-part').value);
-            const total = att + pres + part;
+            
+            const course = getActiveCourse();
+            let customTotal = 0;
+            const customWeights = course.customWeights || {};
+            Object.values(customWeights).forEach(w => customTotal += w);
+            
+            const total = att + pres + part + customTotal;
 
             document.getElementById('weight-att-val').innerText = att;
             document.getElementById('weight-pres-val').innerText = pres;
@@ -2047,7 +2350,6 @@
 
             if(total === 100) {
                 totalEl.className = "text-green-600 font-bold";
-                const course = getActiveCourse();
                 course.weights = { att, pres, part };
                 saveAllDataToStorage();
                 
@@ -2171,16 +2473,21 @@
             
             const projects = course.projects || [];
             const peerEvalMode = course.peerEvalMode || "none";
+            const customWeights = course.customWeights || {};
+            const customNames = Object.keys(customWeights);
             
             let csvContent = "\uFEFF"; // UTF-8 BOM 防止 Excel 亂碼
             const headers = ["No.", "班級", "學號", "姓名", "分組", "歷史出席率", "出席評估分"];
             projects.forEach(p => headers.push(`報告原始:${p}`));
-            headers.push("報告項目平均基分", "團隊互評分", "貢獻係數(原始)", "貢獻係數(採計0.8~1.2)", "貢獻等級", "報告最終實得", "發言次數", "發言評估分", "學期加權總成績");
+            headers.push("報告項目平均基分", "團隊互評分", "貢獻係數(原始)", "貢獻係數(採計0.8~1.2)", "貢獻等級", "報告最終實得", "發言次數", "發言評估分");
+            
+            customNames.forEach(name => headers.push(`${name}(${customWeights[name]}%)`));
+            headers.push("學期加權總成績");
             
             csvContent += headers.join(",") + "\n";
-
+ 
             const sorted = [...course.students].sort((x, y) => (x.no || 0) - (y.no || 0));
-
+ 
             // 小組互評均分字典
             const groupPeerAverages = {};
             const uniqueGroups = Array.from(new Set(course.students.map(s => s.group).filter(g => g && g !== "未分組")));
@@ -2193,7 +2500,7 @@
                 });
                 groupPeerAverages[g] = members.length > 0 ? (sum / members.length) : 80;
             });
-
+ 
             sorted.forEach(s => {
                 let totalSlots = 0, attendedSlots = 0;
                 if(s.attendance) {
@@ -2204,7 +2511,7 @@
                     });
                 }
                 const attRate = totalSlots > 0 ? (attendedSlots / totalSlots) * 100 : 100;
-
+ 
                 let pSum = 0, pCount = 0;
                 const rowScores = [];
                 projects.forEach(p => {
@@ -2217,7 +2524,7 @@
                     }
                 });
                 const projectBaseAvg = pCount > 0 ? (pSum / pCount) : 0;
-
+ 
                 if(!s.peerEval) s.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
                 const personalPeerScore = (s.peerEval.contribution + s.peerEval.communication + s.peerEval.punctuality) / 3;
                 
@@ -2241,8 +2548,24 @@
                 }
                 
                 const partScore = Math.min(100, (s.bonusCount || 0) * 5);
-                const finalGrade = (attRate * (course.weights.att / 100)) + (finalProjectScore * (course.weights.pres / 100)) + (partScore * (course.weights.part / 100));
-
+                
+                // 自訂分數
+                if(!s.customScores) s.customScores = {};
+                const customScoresList = [];
+                let customWeightedSum = 0;
+                customNames.forEach(name => {
+                    const score = s.customScores[name] !== undefined ? s.customScores[name] : "";
+                    customScoresList.push(score === "" ? "-" : score);
+                    
+                    const numericScore = (score === "" || isNaN(score)) ? 0 : Number(score);
+                    customWeightedSum += numericScore * (customWeights[name] / 100);
+                });
+                
+                const finalGrade = (attRate * (course.weights.att / 100)) + 
+                                   (finalProjectScore * (course.weights.pres / 100)) + 
+                                   (partScore * (course.weights.part / 100)) +
+                                   customWeightedSum;
+ 
                 const rowData = [
                     s.no || '',
                     s.class,
@@ -2260,11 +2583,12 @@
                     Math.round(finalProjectScore),
                     s.bonusCount || 0,
                     partScore,
+                    ...customScoresList,
                     finalGrade.toFixed(1)
                 ];
                 csvContent += rowData.join(",") + "\n";
             });
-
+ 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
@@ -2405,7 +2729,7 @@
  * 4. 點選編輯器右上角的「部署」->「新增部署」。
  * 5. 部署類型選擇「網頁應用程式 (Web App)」。
  * 6. 設定以下部署內容：
- *    - 說明：大學評分系統雲端 API
+ *    - 說明：大學評分系統雲端 API (支援自訂評分項目與權重)
  *    - 執行身分：我 (您的 Google 帳號)
  *    - 誰有權限存取：任何人 (Anyone)
  * 7. 點選「部署」，並在彈出的權限視窗中，點選您的帳號並授予授權（點選「進階」->「前往未命名的專案 (不安全)」以核准權限）。
@@ -2433,14 +2757,16 @@ function doPost(e) {
     }
     
     if (action === "upload") {
+      // 1. 將完整的 JSON 資料庫備份至隱藏的 __CONFIG__ 工作表中，供還原使用
       var configSheet = spreadsheet.getSheetByName("__CONFIG__");
       if (!configSheet) {
         configSheet = spreadsheet.insertSheet("__CONFIG__");
-        configSheet.hideSheet();
+        configSheet.hideSheet(); // 隱藏此工作表，避免使用者誤刪
       }
       configSheet.clear();
       configSheet.getRange(1, 1).setValue(JSON.stringify(requestData.payload));
       
+      // 2. 解析資料並動態為每門課程建立/更新美化的工作表
       updateReports(spreadsheet, requestData.payload.courses);
       
       return ContentService.createTextOutput(JSON.stringify({
@@ -2485,12 +2811,16 @@ function doPost(e) {
   }
 }
 
+/**
+ * 更新所有課程在 Sheets 中的視覺化報表
+ */
 function updateReports(spreadsheet, courses) {
   var activeCourseNames = [];
   for (var courseId in courses) {
     activeCourseNames.push(courses[courseId].name);
   }
   
+  // 清理已經在網頁端被刪除的課程對應工作表
   var sheets = spreadsheet.getSheets();
   sheets.forEach(function(sheet) {
     var name = sheet.getName();
@@ -2503,57 +2833,89 @@ function updateReports(spreadsheet, courses) {
       if (activeCourseNames.indexOf(courseName) === -1) {
         try {
           spreadsheet.deleteSheet(sheet);
-        } catch(e) {}
+        } catch(e) {
+          // 防止最後一個工作表被刪除而出錯
+        }
       }
     }
   });
   
+  // 逐一更新各課程工作表
   for (var courseId in courses) {
     var course = courses[courseId];
     
+    // A. 更新或建立成績總表
     var gradeSheetName = course.name + "_成績總表";
-    var gradeSheet = spreadsheet.getSheetByName(gradeSheetName) || spreadsheet.insertSheet(gradeSheetName);
+    var gradeSheet = spreadsheet.getSheetByName(gradeSheetName);
+    if (!gradeSheet) {
+      gradeSheet = spreadsheet.insertSheet(gradeSheetName);
+    }
     gradeSheet.clear();
     writeGradesToSheet(gradeSheet, course);
     
+    // B. 更新或建立出缺席表
     var attSheetName = course.name + "_出缺席表";
-    var attSheet = spreadsheet.getSheetByName(attSheetName) || spreadsheet.insertSheet(attSheetName);
+    var attSheet = spreadsheet.getSheetByName(attSheetName);
+    if (!attSheet) {
+      attSheet = spreadsheet.insertSheet(attSheetName);
+    }
     attSheet.clear();
     writeAttendanceToSheet(attSheet, course);
   }
 }
 
+/**
+ * 寫入與美化成績總表
+ */
 function writeGradesToSheet(sheet, course) {
   var weights = course.weights || { att: 20, pres: 40, part: 40 };
+  var customWeights = course.customWeights || {};
+  var customNames = Object.keys(customWeights);
+  
   var projects = course.projects || [];
   var students = course.students || [];
   var peerEvalMode = course.peerEvalMode || "none";
   
+  // 1. 設置標題列與樣式
   sheet.getRange(1, 1).setValue(course.name + " 學期加權成績大表")
     .setFontSize(16)
     .setFontWeight("bold")
     .setFontColor("#1e3a8a");
   
-  var maxCol = 16 + projects.length;
+  var maxCol = 15 + projects.length + customNames.length;
   sheet.getRange(1, 1, 1, maxCol).merge();
   
+  // 2. 設置公式與權重描述
   var formulaText = "★ 計分公式：學期總加權成績 = (出席得分 × " + weights.att + "%) + (報告最終實得 × " + weights.pres + "%) + (發言得分 × " + weights.part + "%)";
+  customNames.forEach(function(name) {
+    formulaText += " + (" + name + " × " + customWeights[name] + "%)";
+  });
+  
   if (peerEvalMode === "average") {
     formulaText += " | [小組互評機制：已啟用「平均貢獻度調幅」，報告最終實得 = 報告平均基分 × 個人貢獻係數 (限制於 0.80 ~ 1.20 之間)]";
   } else {
-    formulaText += " | [小組互評機制：未啟用 (互評僅作參考，報告分數直接繼承小組基分)]";
+    formulaText += " | [小組互評機制：未啟用 (報告分數直接繼承小組基分)]";
   }
+  
   sheet.getRange(2, 1).setValue(formulaText)
     .setFontSize(9)
     .setFontColor("#4b5563")
     .setFontStyle("italic");
   sheet.getRange(2, 1, 1, maxCol).merge();
   
+  // 3. 定義欄位 Header
   var headers = ["No.", "班級", "學號", "姓名", "分組", "歷史出席率", "出席評估分 (" + weights.att + "%)"];
   projects.forEach(function(p) {
     headers.push("報告原始:" + p);
   });
-  headers.push("報告項目平均基分", "團隊互評得分", "個人貢獻係數", "報告最終實得", "報告加權分 (" + weights.pres + "%)", "發言次數", "發言評估分 (" + weights.part + "%)", "學期加權總成績");
+  headers.push("報告項目平均基分", "團隊互評得分", "個人貢獻係數", "報告最終實得", "報告加權分 (" + weights.pres + "%)", "發言次數", "發言評估分 (" + weights.part + "%)");
+  
+  // 加入自訂項目表頭
+  customNames.forEach(function(name) {
+    headers.push(name + " (" + customWeights[name] + "%)");
+  });
+  
+  headers.push("學期加權總成績");
   
   var headerRange = sheet.getRange(4, 1, 1, headers.length);
   headerRange.setValues([headers])
@@ -2570,6 +2932,7 @@ function writeGradesToSheet(sheet, course) {
     return;
   }
   
+  // 4. 計算各小組互評平均
   var groupPeerAverages = {};
   var uniqueGroups = [];
   students.forEach(function(s) {
@@ -2588,12 +2951,14 @@ function writeGradesToSheet(sheet, course) {
     groupPeerAverages[g] = members.length > 0 ? (sum / members.length) : 80;
   });
   
+  // 5. 整理與寫入學生成績列
   var rowsData = [];
   var sortedStudents = students.slice().sort(function(a, b) {
     return (a.no || 0) - (b.no || 0);
   });
   
   sortedStudents.forEach(function(s, idx) {
+    // 出席率
     var totalSlots = 0, attendedSlots = 0;
     if (s.attendance) {
       for (var date in s.attendance) {
@@ -2605,6 +2970,7 @@ function writeGradesToSheet(sheet, course) {
     }
     var attRate = totalSlots > 0 ? (attendedSlots / totalSlots) * 100 : 100;
     
+    // 報告平均
     var pSum = 0, pCount = 0;
     var pScores = [];
     projects.forEach(function(p) {
@@ -2619,6 +2985,7 @@ function writeGradesToSheet(sheet, course) {
     });
     var projectBaseAvg = pCount > 0 ? (pSum / pCount) : 0;
     
+    // 互評與係數
     if (!s.peerEval) s.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
     var personalPeerScore = (s.peerEval.contribution + s.peerEval.communication + s.peerEval.punctuality) / 3;
     
@@ -2633,10 +3000,26 @@ function writeGradesToSheet(sheet, course) {
     }
     var projectWeighted = finalProjectScore * (weights.pres / 100);
     
+    // 發言
     var bonusCount = s.bonusCount || 0;
     var partScore = Math.min(100, bonusCount * 5);
     
-    var finalGrade = (attRate * (weights.att / 100)) + (finalProjectScore * (weights.pres / 100)) + (partScore * (weights.part / 100));
+    // 自訂分數累加
+    var customScoresList = [];
+    var customWeightedSum = 0;
+    customNames.forEach(function(name) {
+      var score = (s.customScores && s.customScores[name] !== undefined) ? s.customScores[name] : "";
+      customScoresList.push(score === "" ? "-" : score);
+      
+      var numericScore = (score === "" || isNaN(score)) ? 0 : Number(score);
+      customWeightedSum += numericScore * (customWeights[name] / 100);
+    });
+    
+    // 總成績公式加上自訂加權分
+    var finalGrade = (attRate * (weights.att / 100)) + 
+                     (finalProjectScore * (weights.pres / 100)) + 
+                     (partScore * (weights.part / 100)) + 
+                     customWeightedSum;
     
     var row = [
       s.no || (idx + 1),
@@ -2659,9 +3042,15 @@ function writeGradesToSheet(sheet, course) {
       Math.round(finalProjectScore),
       Number(projectWeighted.toFixed(1)),
       bonusCount,
-      partScore,
-      Number(finalGrade.toFixed(1))
+      partScore
     );
+    
+    // 放入自訂項目分數
+    customScoresList.forEach(function(cs) {
+      row.push(cs);
+    });
+    
+    row.push(Number(finalGrade.toFixed(1)));
     
     rowsData.push(row);
   });
@@ -2671,12 +3060,16 @@ function writeGradesToSheet(sheet, course) {
     .setFontSize(9)
     .setVerticalAlignment("middle");
   
+  // 排版細節：前 5 欄對齊靠左，其餘對齊居中
   sheet.getRange(5, 1, rowsData.length, 5).setHorizontalAlignment("left");
   sheet.getRange(5, 6, rowsData.length, headers.length - 5).setHorizontalAlignment("center");
+  // 總加權成績靠右並加粗
   sheet.getRange(5, headers.length, rowsData.length, 1).setHorizontalAlignment("right").setFontWeight("bold");
   
+  // 劃上格線
   dataRange.setBorder(true, true, true, true, true, true, "#e5e7eb", SpreadsheetApp.BorderStyle.SOLID);
   
+  // 條件格式化：總成績不及格 (<60) 紅色高亮
   var finalGradesRange = sheet.getRange(5, headers.length, rowsData.length, 1);
   var rule = SpreadsheetApp.newConditionalFormatRule()
     .whenNumberLessThan(60)
@@ -2688,6 +3081,7 @@ function writeGradesToSheet(sheet, course) {
   rules.push(rule);
   sheet.setConditionalFormatRules(rules);
   
+  // 自動適應欄寬，並加上邊距
   for (var col = 1; col <= headers.length; col++) {
     sheet.autoResizeColumn(col);
     var currentWidth = sheet.getColumnWidth(col);
@@ -2695,14 +3089,19 @@ function writeGradesToSheet(sheet, course) {
   }
 }
 
+/**
+ * 寫入與美化出缺席明細表
+ */
 function writeAttendanceToSheet(sheet, course) {
   var students = course.students || [];
   
+  // 1. 設置大標題
   sheet.getRange(1, 1).setValue(course.name + " 學生出缺席點名大表")
     .setFontSize(16)
     .setFontWeight("bold")
     .setFontColor("#1e3a8a");
   
+  // 2. 蒐集所有不重複且排序過的點名日期
   var datesSet = [];
   students.forEach(function(s) {
     if (s.attendance) {
@@ -2720,12 +3119,14 @@ function writeAttendanceToSheet(sheet, course) {
   var maxCol = 5 + datesSet.length;
   sheet.getRange(1, 1, 1, maxCol).merge();
   
-  sheet.getRange(2, 1).setValue("★ 點名狀態著色說明：出席 (綠色)、遲到 (黃色)、缺席 (紅色) | 點名歷史會即時且完整呈呈現。")
+  // 3. 說明列
+  sheet.getRange(2, 1).setValue("★ 點名狀態著色說明：出席 (綠色)、遲到 (黃色)、缺席 (紅色) | 點名歷史會即時且完整呈現。")
     .setFontSize(9)
     .setFontColor("#4b5563")
     .setFontStyle("italic");
   sheet.getRange(2, 1, 1, maxCol).merge();
   
+  // 4. 定義 Header
   var headers = ["No.", "班級", "學號", "姓名", "分組"];
   datesSet.forEach(function(date) {
     headers.push(date);
@@ -2813,6 +3214,7 @@ function writeAttendanceToSheet(sheet, course) {
     var currentWidth = sheet.getColumnWidth(col);
     sheet.setColumnWidth(col, currentWidth + 12);
   }
-}</textarea>
+}
+</textarea>
 </body>
 </html>
