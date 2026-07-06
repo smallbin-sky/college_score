@@ -1,0 +1,2818 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大學多課程學生評分、互評與教學輔助系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (Excel 匯入/匯出) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f5f7fa',
+                            100: '#e4e8f0',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        .active-tab {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            border-left: 4px solid #1d4ed8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-primary-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-wide">多課程評分與教學輔助系統</h1>
+                    <p class="text-xs text-blue-200">專為大學教授設計的多課管理與組內互評計分工具</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- 課程切換下拉選單 -->
+                <div class="flex items-center space-x-2 bg-primary-800 px-3 py-1.5 rounded-lg border border-primary-700">
+                    <i class="fa-solid fa-book text-blue-300 text-sm"></i>
+                    <select id="course-selector" onchange="handleCourseChange(this.value)" class="bg-transparent text-white text-sm font-medium focus:outline-none cursor-pointer pr-2">
+                        <!-- 動態生成課程清單 -->
+                    </select>
+                </div>
+                <!-- 雲端同步狀態提示 -->
+                <div id="header-sync-status" class="hidden items-center space-x-1.5 bg-blue-800/50 border border-blue-700 px-2.5 py-1 rounded-lg text-2xs text-blue-200">
+                    <i class="fa-solid fa-spinner animate-spin text-3xs"></i>
+                    <span class="hidden md:inline">雲端同步中</span>
+                </div>
+                <button onclick="triggerResetConfirm()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs transition duration-200 flex items-center space-x-1">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span class="hidden sm:inline">重設當前課程資料</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主體內容 -->
+    <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col md:flex-row gap-6">
+        
+        <!-- 左側選單 / 控制台 -->
+        <aside class="w-full md:w-64 flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-100 p-4 self-start">
+            <div class="mb-4 px-2">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">功能選單</p>
+            </div>
+            <nav class="space-y-1">
+                <button onclick="switchTab('dashboard')" id="btn-dashboard" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium active-tab">
+                    <i class="fa-solid fa-chart-line w-5 text-center"></i>
+                    <span>班級概況首頁</span>
+                </button>
+                <button onclick="switchTab('courses')" id="btn-courses" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-folder-open w-5 text-center"></i>
+                    <span>課程管理中心</span>
+                </button>
+                <button onclick="switchTab('attendance')" id="btn-attendance" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-clipboard-user w-5 text-center"></i>
+                    <span>出缺席點名</span>
+                </button>
+                <button onclick="switchTab('presentation')" id="btn-presentation" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-people-group w-5 text-center"></i>
+                    <span>分組報告評分</span>
+                </button>
+                <button onclick="switchTab('peer-eval')" id="btn-peer-eval" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-users-viewfinder w-5 text-center"></i>
+                    <span>組內成員互評</span>
+                </button>
+                <button onclick="switchTab('participation')" id="btn-participation" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-comments w-5 text-center"></i>
+                    <span>課堂發言加分</span>
+                </button>
+                <button onclick="switchTab('roster')" id="btn-roster" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-users-gear w-5 text-center"></i>
+                    <span>學生名冊管理</span>
+                </button>
+                <button onclick="switchTab('grades')" id="btn-grades" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-file-invoice w-5 text-center"></i>
+                    <span>成績總覽與匯出</span>
+                </button>
+                <button onclick="switchTab('cloud')" id="btn-cloud" class="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all text-left font-medium">
+                    <i class="fa-solid fa-cloud-arrow-up w-5 text-center text-blue-500 animate-pulse"></i>
+                    <span class="font-bold text-blue-600">雲端同步 (GAS)</span>
+                </button>
+            </nav>
+
+            <!-- 評分權重調整 -->
+            <div class="mt-8 border-t border-gray-100 pt-4">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">本課評分權重</p>
+                <div class="space-y-3 px-2 text-sm text-gray-600">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span>出席分數 (<span id="weight-att-val">20</span>%)</span>
+                        </div>
+                        <input type="range" id="weight-att" min="0" max="100" value="20" oninput="updateWeights()" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span>小組報告 (<span id="weight-pres-val">40</span>%)</span>
+                        </div>
+                        <input type="range" id="weight-pres" min="0" max="100" value="40" oninput="updateWeights()" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span>課堂發言 (<span id="weight-part-val">40</span>%)</span>
+                        </div>
+                        <input type="range" id="weight-part" min="0" max="100" value="40" oninput="updateWeights()" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div class="pt-2 border-t border-dashed border-gray-100 flex justify-between font-semibold text-gray-700">
+                        <span>總權重百分比:</span>
+                        <span id="weight-total" class="text-green-600 font-bold">100%</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主要內容區 -->
+        <main class="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6 min-h-[550px]">
+            
+            <!-- 1. 儀表板分頁 (Dashboard) -->
+            <section id="tab-dashboard" class="space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800" id="dash-course-title">班級概況首頁</h2>
+                        <p class="text-sm text-gray-500">瀏覽當前切換課程之出席率、小組與即時發言狀態</p>
+                    </div>
+                    <div class="text-sm text-gray-500 flex items-center space-x-2">
+                        <i class="fa-regular fa-calendar"></i>
+                        <span id="dashboard-date">2026-07-05</span>
+                    </div>
+                </div>
+
+                <!-- 數據卡片 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center space-x-4">
+                        <div class="p-3 bg-blue-500 text-white rounded-lg"><i class="fa-solid fa-users text-xl"></i></div>
+                        <div>
+                            <p class="text-xs text-blue-600 font-medium">修課學生人數</p>
+                            <p class="text-2xl font-bold text-blue-950 mt-1" id="stat-total-students">0人</p>
+                        </div>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-100 rounded-xl p-4 flex items-center space-x-4">
+                        <div class="p-3 bg-purple-500 text-white rounded-lg"><i class="fa-solid fa-people-roof text-xl"></i></div>
+                        <div>
+                            <p class="text-xs text-purple-600 font-medium">組別總數</p>
+                            <p class="text-2xl font-bold text-purple-950 mt-1" id="stat-total-groups">0組</p>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center space-x-4">
+                        <div class="p-3 bg-emerald-500 text-white rounded-lg"><i class="fa-solid fa-clipboard-check text-xl"></i></div>
+                        <div>
+                            <p class="text-xs text-emerald-600 font-medium">歷史平均出席率</p>
+                            <p class="text-2xl font-bold text-emerald-950 mt-1" id="stat-attendance-rate">0%</p>
+                        </div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-center space-x-4">
+                        <div class="p-3 bg-amber-500 text-white rounded-lg"><i class="fa-solid fa-award text-xl"></i></div>
+                        <div>
+                            <p class="text-xs text-amber-600 font-medium">累計發言次數</p>
+                            <p class="text-2xl font-bold text-amber-950 mt-1" id="stat-total-bonus">0次</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 今日點名簡報 -->
+                    <div class="border border-gray-100 rounded-xl p-5 space-y-4">
+                        <h3 class="font-bold text-gray-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-bell-concierge text-blue-600 mr-2"></i>當前點名速報</span>
+                            <button onclick="switchTab('attendance')" class="text-xs text-blue-600 hover:underline">前往點名 <i class="fa-solid fa-arrow-right"></i></button>
+                        </h3>
+                        <div class="bg-gray-50 p-4 rounded-lg flex justify-around text-center">
+                            <div>
+                                <span class="block text-xl font-bold text-green-600" id="dash-present-count">0</span>
+                                <span class="text-xs text-gray-500">出席</span>
+                            </div>
+                            <div class="border-l border-gray-200"></div>
+                            <div>
+                                <span class="block text-xl font-bold text-red-500" id="dash-absent-count">0</span>
+                                <span class="text-xs text-gray-500">缺席</span>
+                            </div>
+                            <div class="border-l border-gray-200"></div>
+                            <div>
+                                <span class="block text-xl font-bold text-amber-500" id="dash-late-count">0</span>
+                                <span class="text-xs text-gray-500">遲到</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 發言排行榜 -->
+                    <div class="border border-gray-100 rounded-xl p-5 space-y-4">
+                        <h3 class="font-bold text-gray-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-fire text-amber-500 mr-2"></i>課堂發言積極榜</span>
+                            <button onclick="switchTab('participation')" class="text-xs text-blue-600 hover:underline">互動加分 <i class="fa-solid fa-arrow-right"></i></button>
+                        </h3>
+                        <div class="overflow-x-auto rounded-lg border border-gray-100">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 text-gray-600 text-xs font-medium">
+                                    <tr>
+                                        <th class="px-4 py-2">名次</th>
+                                        <th class="px-4 py-2">班級 / 姓名 (學號)</th>
+                                        <th class="px-4 py-2 text-right">發言次數</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-leaderboard" class="divide-y divide-gray-100 text-gray-700">
+                                    <!-- 動態生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 1.5 課程管理中心 (Courses Management) -->
+            <section id="tab-courses" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">課程管理中心</h2>
+                        <p class="text-sm text-gray-500">建立全新的課程，或者編輯、清除舊有的班級資料檔案</p>
+                    </div>
+                    <button onclick="openCreateCourseModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-200 flex items-center space-x-2">
+                        <i class="fa-solid fa-folder-plus"></i>
+                        <span>開設新課程</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="course-list-grid">
+                    <!-- 動態生成各課程卡片 -->
+                </div>
+            </section>
+
+            <!-- 2. 出缺席點名分頁 (Attendance) -->
+            <section id="tab-attendance" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">出缺席點名</h2>
+                        <p class="text-sm text-gray-500">記錄並累計個別課程的日常到課數據</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="attendance-date" class="text-sm text-gray-600">點名日期:</label>
+                        <input type="date" id="attendance-date" onchange="loadAttendanceDate()" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 justify-between bg-gray-50 p-3 rounded-lg">
+                    <div class="flex gap-2">
+                        <button onclick="setAllAttendance('出席')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 text-xs rounded-md transition">全員出席</button>
+                        <button onclick="setAllAttendance('缺席')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 text-xs rounded-md transition">全員缺席</button>
+                    </div>
+                    <span class="text-xs text-gray-400">* 資料會即時保存在當前課程沙盒中</span>
+                </div>
+
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 text-gray-600 text-xs font-medium">
+                            <tr>
+                                <th class="px-6 py-3">No.</th>
+                                <th class="px-6 py-3">班級</th>
+                                <th class="px-6 py-3">學號</th>
+                                <th class="px-6 py-3">姓名</th>
+                                <th class="px-6 py-3">組別</th>
+                                <th class="px-6 py-3 text-center">當前狀態</th>
+                                <th class="px-6 py-3 text-center">變更狀態</th>
+                                <th class="px-6 py-3 text-center">歷次明細</th>
+                                <th class="px-6 py-3 text-right">歷史出席率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-table-body" class="divide-y divide-gray-100 text-gray-700 text-xs"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 3. 分組報告評分分頁 (Presentation) -->
+            <section id="tab-presentation" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">分組報告評分</h2>
+                        <p class="text-sm text-gray-500">建立多個報告項目（如：期中簡報、期末專案），並為各組評分</p>
+                    </div>
+                    <button onclick="openAddProjectModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>新增報告項目</span>
+                    </button>
+                </div>
+
+                <!-- 報告項目標籤切換 -->
+                <div class="flex flex-wrap gap-2 border-b border-gray-100 pb-2" id="project-tabs-container"></div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 border border-gray-100 rounded-xl p-4 space-y-3">
+                        <h3 class="font-bold text-gray-700 border-b pb-2">選擇組別</h3>
+                        <div class="space-y-2 max-h-[350px] overflow-y-auto" id="presentation-groups-list"></div>
+                    </div>
+                    <div class="lg:col-span-2 bg-gray-50 rounded-xl border border-gray-100 p-6 flex flex-col justify-between" id="presentation-score-panel">
+                        <div class="text-center py-12 text-gray-400"><i class="fa-solid fa-people-group text-5xl mb-3 block text-blue-300"></i>請選取左側組別以登錄分數</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3.5 組內成員互評分頁 (Peer Evaluation) -->
+            <section id="tab-peer-eval" class="hidden space-y-6">
+                <div class="border-b border-gray-100 pb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">組內成員互評系統</h2>
+                    <p class="text-sm text-gray-500">預防搭便車！登記小組內部成員相互評鑑的分數（三大指標，1-100分，將依設定模式套入報告得分公式）</p>
+                </div>
+
+                <!-- 互評計分模式控制項：新增二個選項，預設為都不使用 -->
+                <div class="bg-purple-50 border border-purple-100 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="space-y-0.5">
+                        <h4 class="font-bold text-purple-900 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-purple-600"></i>
+                            本課小組互評計分模式設定
+                        </h4>
+                        <p class="text-2xs text-purple-700">選擇如何將小組內部的成員互評結果，應用並計算在學期大表的報告實得成績中</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="peer-eval-mode-selector" class="text-xs text-purple-800 font-semibold">套用規則：</label>
+                        <select id="peer-eval-mode-selector" onchange="changePeerEvalMode(this.value)" class="border border-purple-300 rounded-lg px-3 py-1.5 text-xs bg-white text-purple-900 font-medium focus:ring-2 focus:ring-purple-500 cursor-pointer">
+                            <option value="none" selected>都不使用 (互評僅登記參考，不影響成績)</option>
+                            <option value="average">使用平均貢獻度係數 (個人互評分 ÷ 小組互評均分，係數限制於0.80~1.20)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-100 p-3 rounded-lg text-2xs text-gray-500 leading-relaxed">
+                    <strong class="text-gray-600">貢獻係數對照表：</strong>
+                    1.20以上＝貢獻明顯高於平均｜1.10~1.19＝貢獻優良｜0.90~1.09＝一般水準｜0.80~0.89＝參與不足｜0.79以下＝明顯未盡責。
+                    為避免組員間分數差距過大，實際套用於成績計算的係數會限制在 <strong class="text-gray-700">0.80（下限）～1.20（上限）</strong> 之間，即使算出的原始係數超出此區間，也一律以邊界值採計。
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <!-- 左側小組及成員導覽 -->
+                    <div class="lg:col-span-1 border border-gray-100 rounded-xl p-4 space-y-4">
+                        <h3 class="font-bold text-sm text-gray-700 border-b pb-2">選擇互評學生</h3>
+                        <div class="space-y-3 max-h-[400px] overflow-y-auto" id="peer-groups-tree"></div>
+                    </div>
+                    <!-- 右側互評表單面板 -->
+                    <div class="lg:col-span-3 bg-gray-50 rounded-xl border border-gray-100 p-6" id="peer-eval-panel">
+                        <div class="text-center py-16 text-gray-400">
+                            <i class="fa-solid fa-users-viewfinder text-5xl mb-3 block text-purple-300 animate-pulse"></i>
+                            請從左側面板點選特定同學來登記或檢視其「組內互評得分」
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 課堂發言加分分頁 (Participation) -->
+            <section id="tab-participation" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">課堂即時發言加分</h2>
+                        <p class="text-sm text-gray-500">點擊學生快捷鈕即可即時累加發言次數（每次發言加 5 分，上限 100 分）</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="participation-search" oninput="renderParticipationGrid()" placeholder="搜尋班級、學號或姓名..." class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button onclick="triggerResetBonusConfirm()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg text-xs transition flex items-center space-x-1">
+                            <i class="fa-solid fa-trash-can"></i><span>重設發言</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="participation-grid"></div>
+            </section>
+
+            <!-- 5. 學生名冊管理分頁 (Roster) -->
+            <section id="tab-roster" class="hidden space-y-6">
+                <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">學生名冊管理</h2>
+                        <p class="text-sm text-gray-500">格式符合圖片 <code class="bg-gray-100 text-red-600 px-1 rounded">image_0de69d.png</code> 規範 (No., 班級, 學號, 姓名)</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="document.getElementById('excel-file-input').click()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                            <i class="fa-solid fa-file-import"></i><span>匯入 Excel/CSV 名單</span>
+                        </button>
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelImport(event)">
+                        <button onclick="downloadSampleExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                            <i class="fa-solid fa-download"></i><span>下載格式範本</span>
+                        </button>
+                        <button onclick="openAddStudentModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition flex items-center space-x-1">
+                            <i class="fa-solid fa-user-plus"></i><span>手動新增學生</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 text-gray-600 text-xs font-medium">
+                            <tr>
+                                <th class="px-6 py-3">No.</th>
+                                <th class="px-6 py-3">班級</th>
+                                <th class="px-6 py-3">學號</th>
+                                <th class="px-6 py-3">姓名</th>
+                                <th class="px-6 py-3">小組指派</th>
+                                <th class="px-6 py-3 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roster-table-body" class="divide-y divide-gray-100 text-gray-700 text-xs"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 6. 成績總覽與匯出分頁 (Grades) -->
+            <section id="tab-grades" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">學期總加權成績大表</h2>
+                        <p class="text-sm text-gray-500">整合 出席 + 發言 + 報告項目平均（根據互評模式設定調整）之最終統計</p>
+                    </div>
+                    <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2">
+                        <i class="fa-solid fa-file-excel"></i><span>匯出學期成績單 (CSV)</span>
+                    </button>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl space-y-1 text-xs text-blue-900">
+                    <p><strong>💡 互評機制與計分公式說明：</strong></p>
+                    <p>1. 互評個人得分 = (團隊貢獻度 + 配合溝通 + 準時交付) ÷ 3</p>
+                    <p id="grades-formula-desc" class="font-medium">2. 小組報告最終實得 = 小組多項目報告平均分 <span class="text-amber-600 font-bold">*(當前已設定：都不使用，直接繼承報告基分)*</span></p>
+                    <p class="text-2xs text-blue-700">2a. 若啟用「平均貢獻度係數」：貢獻係數 = 個人互評得分 ÷ 小組互評總平均分，且係數會限制在 0.80（下限）～1.20（上限）之間，超出範圍一律以邊界值採計。</p>
+                    <p>3. 學期加權成績 = (歷史出席率 × <span class="formula-weight-att">20</span>%) + (小組報告最終實得 × <span class="formula-weight-pres">40</span>%) + (發言分數 × <span class="formula-weight-part">40</span>%)</p>
+                </div>
+
+                <div class="overflow-x-auto border border-gray-100 rounded-xl" id="grades-table-wrapper">
+                    <!-- 表格將由 JS 動態建立，確保動態報告項目能完美拉伸成欄位 -->
+                </div>
+            </section>
+
+            <!-- 7. GAS 雲端同步分頁 (Cloud Sync) -->
+            <section id="tab-cloud" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">GAS 雲端同步中心</h2>
+                        <p class="text-sm text-gray-500">透過 Google Apps Script 將評分系統與 Google 試算表進行雲端雙向同步，自動產生成績總表與點名大表</p>
+                    </div>
+                </div>
+
+                <!-- 雲端同步狀態與設定 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 左側：設定控制面板 -->
+                    <div class="lg:col-span-1 border border-gray-100 rounded-xl p-5 space-y-4 bg-white shadow-sm">
+                        <h3 class="font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-gear text-blue-600"></i>雲端設定
+                        </h3>
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="block font-bold text-gray-700 mb-1">GAS Web App URL (網頁應用程式網址)</label>
+                                <input type="password" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 font-mono">
+                                <p class="text-2xs text-gray-400 mt-1">* 為了安全起見，輸入的網址已做隱碼處理。您可隨時重新輸入。</p>
+                            </div>
+                            
+                            <!-- 自動同步開關 -->
+                            <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100">
+                                <div>
+                                    <span class="block font-bold text-gray-700">啟用自動雲端存檔</span>
+                                    <span class="text-2xs text-gray-400 block mt-0.5">點名、評分後於背景即時備份</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="gas-auto-sync" onchange="toggleAutoSync(this.checked)" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <div class="pt-2 border-t border-dashed flex flex-col gap-2">
+                                <button onclick="testCloudConnection()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded-lg transition flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-network-wired"></i>測試雲端連線
+                                </button>
+                                <button onclick="uploadToCloud()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>立即上傳備份至雲端
+                                </button>
+                                <button onclick="downloadFromCloud()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-lg transition shadow-sm flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-cloud-arrow-down"></i>從雲端下載還原資料
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右側：部署教學與狀態 -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- 同步狀態卡片 -->
+                        <div class="border border-gray-100 rounded-xl p-5 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+                            <div class="space-y-1.5">
+                                <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-circle-nodes text-blue-600"></i>連線與同步狀態
+                                </h4>
+                                <div class="text-xs text-gray-600 space-y-1">
+                                    <p>雲端連線：<span id="cloud-status-badge" class="px-2 py-0.5 rounded text-2xs font-bold bg-gray-100 text-gray-400">未設定</span></p>
+                                    <p>最後成功備份時間：<span id="cloud-last-sync" class="font-mono text-gray-500 font-bold">無紀錄</span></p>
+                                </div>
+                            </div>
+                            <div id="cloud-sync-anim" class="hidden items-center space-x-1.5 text-xs text-blue-600 font-medium bg-white px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm animate-pulse">
+                                <i class="fa-solid fa-spinner animate-spin text-sm"></i>
+                                <span>雲端資料庫背景同步中...</span>
+                            </div>
+                        </div>
+
+                        <!-- GAS 部署指南 -->
+                        <div class="border border-gray-100 rounded-xl p-5 bg-white shadow-sm space-y-4">
+                            <h3 class="font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-question text-blue-600"></i>Google Apps Script (GAS) 部署教學
+                            </h3>
+                            <div class="text-xs text-gray-600 leading-relaxed space-y-3">
+                                <div class="flex items-start gap-2">
+                                    <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-3xs shrink-0 mt-0.5">1</span>
+                                    <p>建立一個新的 Google 試算表，點擊上方選單中的 <strong>「擴充功能」->「Apps Script」</strong>。</p>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-3xs shrink-0 mt-0.5">2</span>
+                                    <div>
+                                        <p>點擊下方按鈕複製後端程式碼，並在開啟的 GAS 專案編輯器中貼上，點選上方儲存按鈕：</p>
+                                        <button onclick="copyGasCode()" class="mt-2 bg-slate-800 hover:bg-slate-900 text-white font-medium py-1.5 px-3 rounded-lg transition inline-flex items-center gap-1.5 text-2xs shadow-sm">
+                                            <i class="fa-regular fa-copy"></i>一鍵複製 GAS 後端程式碼 (Code.gs)
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-3xs shrink-0 mt-0.5">3</span>
+                                    <p>在 GAS 編輯器右上角點擊 <strong>「部署」->「新增部署」</strong>，類型選擇「<strong>網頁應用程式 (Web App)</strong>」，執行身分設定為「<strong>我</strong>」，誰有權限存取設定為「<strong>任何人 (Anyone)</strong>」，並按下部署。</p>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-3xs shrink-0 mt-0.5">4</span>
+                                    <p>部署完成後，複製產生的 <strong>「網頁應用程式 URL」</strong>，貼到左側設定欄位中。點擊「測試雲端連線」確認串接成功！</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 腳部 -->
+    <footer class="bg-white border-t border-gray-100 py-4 mt-12 text-center text-xs text-gray-400">
+        <p>&copy; 2026 大學多課程自主評分與教學輔助系統. All Rights Reserved.</p>
+    </footer>
+
+    <!-- 彈出視窗：新增/編輯學生 Modal -->
+    <div id="add-student-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 mx-4">
+            <div class="flex items-center justify-between border-b pb-3 mb-4">
+                <h3 class="text-lg font-bold text-gray-800" id="modal-title">手動新增學生</h3>
+                <button onclick="closeAddStudentModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="student-form" onsubmit="saveStudent(event)" class="space-y-4">
+                <input type="hidden" id="edit-student-index" value="">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">No. (座號/序號)</label>
+                    <input type="number" id="student-no" required placeholder="例如: 1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">班級 <span class="text-red-500">*</span></label>
+                    <input type="text" id="student-class" required placeholder="例如: 資工三甲" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">學號 <span class="text-red-500">*</span></label>
+                    <input type="text" id="student-id" required placeholder="例如: 11201015" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">姓名 <span class="text-red-500">*</span></label>
+                    <input type="text" id="student-name" required placeholder="例如: 王小明" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">指定小組</label>
+                    <select id="student-group" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+                <div class="flex justify-end space-x-2 pt-4 border-t">
+                    <button type="button" onclick="closeAddStudentModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition font-medium">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 彈出視窗：新增報告項目 Modal -->
+    <div id="add-project-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 mx-4">
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-3 mb-4">開設新報告項目</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">報告名稱</label>
+                    <input type="text" id="new-project-name" placeholder="例如: 期末專案成果發表" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeAddProjectModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">取消</button>
+                    <button onclick="submitNewProject()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">確定建立</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 彈出視窗：開設新課程 Modal -->
+    <div id="create-course-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 mx-4">
+            <h3 class="text-lg font-bold text-gray-800 border-b pb-3 mb-4"><i class="fa-solid fa-folder-plus text-blue-600 mr-2"></i>開設新課程</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">課程名稱 <span class="text-red-500">*</span></label>
+                    <input type="text" id="new-course-name" placeholder="例如: 演算法 (四)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeCreateCourseModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">取消</button>
+                    <button onclick="submitCreateCourse()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">確認新增</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 內置全域自訂確認 Modal -->
+    <div id="custom-confirm-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 mx-4">
+            <div class="flex items-center space-x-3 text-amber-600 mb-4">
+                <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                <h3 class="text-lg font-bold text-gray-800" id="confirm-title">確認操作</h3>
+            </div>
+            <p class="text-sm text-gray-600 mb-6" id="confirm-message">您確定要執行此操作嗎？</p>
+            <div class="flex justify-end space-x-2">
+                <button id="confirm-cancel-btn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">取消</button>
+                <button id="confirm-ok-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 內置 Excel 覆寫/追加選擇 Modal -->
+    <div id="import-choice-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 mx-4">
+            <div class="flex items-center space-x-3 text-emerald-600 mb-4">
+                <i class="fa-solid fa-file-excel text-2xl"></i>
+                <h3 class="text-lg font-bold text-gray-800">選擇名單匯入模式</h3>
+            </div>
+            <p class="text-sm text-gray-600 mb-6">偵測到標準名冊資料，請選擇操作方式：</p>
+            <div class="space-y-3">
+                <button id="import-append-btn" class="w-full text-left p-3 border hover:bg-blue-50 rounded-lg transition text-sm">
+                    <strong class="text-blue-700 block"><i class="fa-solid fa-user-plus mr-1"></i>追加匯入 (保留現有學生)</strong>
+                    <span class="text-xs text-gray-500 block mt-0.5">將新名單附加在現有修課成員之後，學號重複者將會自動略過。</span>
+                </button>
+                <button id="import-overwrite-btn" class="w-full text-left p-3 border hover:bg-red-50 rounded-lg transition text-sm">
+                    <strong class="text-red-700 block"><i class="fa-solid fa-user-xmark mr-1"></i>徹底覆寫 (清空本課既有資料)</strong>
+                    <span class="text-xs text-gray-500 block mt-0.5">刪除當前課程所有學生、互評及點名紀錄，重新載入此新名冊。</span>
+                </button>
+                <button onclick="closeImportChoiceModal()" class="w-full bg-gray-100 text-gray-500 text-center py-2 rounded-lg text-xs">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 彈出視窗：歷次出缺席紀錄 Modal -->
+    <div id="attendance-history-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 mx-4">
+            <div class="flex items-center justify-between border-b pb-3 mb-4">
+                <h3 class="text-lg font-bold text-gray-800" id="history-modal-title">歷次點名明細</h3>
+                <button onclick="closeAttendanceHistoryModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-4 max-h-[350px] overflow-y-auto" id="history-modal-content">
+                <!-- 動態呈現歷次明細列表 -->
+            </div>
+            <div class="flex justify-end pt-4 border-t mt-4">
+                <button onclick="closeAttendanceHistoryModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 訊息元件 -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- 核心運作 JavaScript 邏輯 -->
+    <script>
+        // --- 核心多課程資料結構定義 ---
+        let courses = {};       // 存放所有課程沙盒的物件
+        let currentCourseId = ""; // 當前選定操作的課程 ID
+        
+        let gradesSortField = "no";
+        let gradesSortOrder = "asc";
+
+        function sortGrades(field) {
+            if (gradesSortField === field) {
+                gradesSortOrder = gradesSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                gradesSortField = field;
+                gradesSortOrder = 'asc';
+            }
+            renderGradesTable();
+        }
+
+        function getSortIcon(field) {
+            if (gradesSortField !== field) {
+                return '<i class="fa-solid fa-sort text-gray-300 ml-1 text-2xs"></i>';
+            }
+            return gradesSortOrder === 'asc'
+                ? '<i class="fa-solid fa-sort-up text-blue-600 ml-1 text-2xs"></i>'
+                : '<i class="fa-solid fa-sort-down text-blue-600 ml-1 text-2xs"></i>';
+        }
+
+        // 預載基本模版常數
+        const DEFAULT_PROJECTS = ["期中專案企劃", "期末成果發表"];
+        const GROUPS_ARRAY = ["未分組", ...Array.from({length: 20}, (_, i) => `第 ${i+1} 組`)];
+
+        // --- 預設模擬數據庫 (增加 peerEvalMode 屬性) ---
+        const MOCK_COURSES_TEMPLATES = {
+            "course-web": {
+                name: "網頁程式設計 (三)",
+                peerEvalMode: "none", // 新增互評模式，預設為都不使用
+                weights: { att: 20, pres: 40, part: 40 },
+                projects: ["期中企劃簡報", "期末專案發表"],
+                students: [
+                    { no: 1, class: "資工三甲", id: "1120101", name: "張志明", group: "第 1 組", attendance: {"2026-07-01":"出席","2026-07-02":"出席","2026-07-03":"出席","2026-07-04":"遲到","2026-07-05":"出席"}, bonusCount: 4, presentationScores: {"期中企劃簡報":88, "期末專案發表":92}, peerEval: { contribution: 90, communication: 85, punctuality: 95 } },
+                    { no: 2, class: "資工三甲", id: "1120102", name: "林春嬌", group: "第 1 組", attendance: {"2026-07-01":"出席","2026-07-02":"缺席","2026-07-03":"出席","2026-07-04":"出席","2026-07-05":"出席"}, bonusCount: 1, presentationScores: {"期中企劃簡報":88, "期末專案發表":92}, peerEval: { contribution: 40, communication: 50, punctuality: 60 } }, // 模擬搭便車者
+                    { no: 3, class: "資工三甲", id: "1120103", name: "陳大同", group: "第 1 組", attendance: {"2026-07-01":"出席","2026-07-02":"出席","2026-07-03":"出席","2026-07-04":"出席","2026-07-05":"出席"}, bonusCount: 8, presentationScores: {"期中企劃簡報":88, "期末專案發表":92}, peerEval: { contribution: 95, communication: 95, punctuality: 90 } },
+                    { no: 4, class: "資工三乙", id: "1120201", name: "李學文", group: "第 2 組", attendance: {"2026-07-01":"出席","2026-07-02":"出席","2026-07-03":"出席","2026-07-04":"出席","2026-07-05":"遲到"}, bonusCount: 2, presentationScores: {"期中企劃簡報":75, "期末專案發表":82}, peerEval: { contribution: 80, communication: 85, punctuality: 80 } },
+                    { no: 5, class: "資工三乙", id: "1120202", name: "王曉華", group: "第 2 組", attendance: {"2026-07-01":"缺席","2026-07-02":"缺席","2026-07-03":"出席","2026-07-04":"出席","2026-07-05":"出席"}, bonusCount: 0, presentationScores: {"期中企劃簡報":75, "期末專案發表":82}, peerEval: { contribution: 85, communication: 80, punctuality: 85 } },
+                    { no: 6, class: "網媒二丙", id: "1130312", name: "黃小龍", group: "未分組", attendance: {"2026-07-01":"出席","2026-07-02":"出席","2026-07-04":"出席","2026-07-05":"出席"}, bonusCount: 5, presentationScores: {}, peerEval: { contribution: 80, communication: 80, punctuality: 80 } }
+                ]
+            },
+            "course-ai": {
+                name: "人工智慧導論",
+                peerEvalMode: "none",
+                weights: { att: 20, pres: 40, part: 40 },
+                projects: ["機器學習黑客松", "期末論文研讀報告"],
+                students: [
+                    { no: 1, class: "電機四乙", id: "1110502", name: "林俊傑", group: "第 1 組", attendance: {"2026-07-05":"出席"}, bonusCount: 3, presentationScores: {"機器學習黑客松":95}, peerEval: { contribution: 90, communication: 90, punctuality: 90 } },
+                    { no: 2, class: "資工四甲", id: "1110123", name: "周傑倫", group: "第 1 組", attendance: {"2026-07-05":"出席"}, bonusCount: 6, presentationScores: {"機器學習黑客松":95}, peerEval: { contribution: 92, communication: 95, punctuality: 92 } },
+                    { no: 3, class: "網媒三甲", id: "1120345", name: "蔡依林", group: "未分組", attendance: {"2026-07-05":"缺席"}, bonusCount: 1, presentationScores: {}, peerEval: { contribution: 80, communication: 80, punctuality: 80 } }
+                ]
+            },
+            "course-oop": {
+                name: "物件導向程式設計",
+                peerEvalMode: "none",
+                weights: { att: 30, pres: 40, part: 30 },
+                projects: ["期中大工作坊評比"],
+                students: [
+                    { no: 1, class: "資工二甲", id: "1130101", name: "五月天", group: "第 1 組", attendance: {}, bonusCount: 0, presentationScores: {}, peerEval: { contribution: 80, communication: 80, punctuality: 80 } }
+                ]
+            }
+        };
+
+        // --- 初始化啟動 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('dashboard-date').innerText = new Date().toISOString().split('T')[0];
+            document.getElementById('attendance-date').value = new Date().toISOString().split('T')[0];
+            
+            loadCloudConfig();
+            loadAllDataFromStorage();
+            populateCourseSelector();
+            
+            // 預設切換至第一個可用的課程
+            if (Object.keys(courses).length > 0) {
+                if (!currentCourseId || !courses[currentCourseId]) {
+                    currentCourseId = Object.keys(courses)[0];
+                }
+                document.getElementById('course-selector').value = currentCourseId;
+                syncWeightsUI();
+                refreshCurrentTab();
+            } else {
+                showToast("當前無課程，請至課程中心開設新課程", "warning");
+                switchTab('courses');
+            }
+            buildGroupOptions();
+        });
+
+        // --- 雲端同步管理邏輯 (GAS) ---
+        let cloudConfig = {
+            gasUrl: "",
+            autoSync: false,
+            lastSync: ""
+        };
+
+        function loadCloudConfig() {
+            const stored = localStorage.getItem('MULTI_COURSE_CLOUD_CONFIG');
+            if (stored) {
+                try {
+                    cloudConfig = JSON.parse(stored);
+                } catch (e) {
+                    // 保留預設值
+                }
+            }
+        }
+
+        function saveCloudConfig() {
+            localStorage.setItem('MULTI_COURSE_CLOUD_CONFIG', JSON.stringify(cloudConfig));
+        }
+
+        function renderCloudTab() {
+            document.getElementById('gas-url-input').value = cloudConfig.gasUrl || "";
+            document.getElementById('gas-auto-sync').checked = cloudConfig.autoSync || false;
+            
+            const statusBadge = document.getElementById('cloud-status-badge');
+            if (cloudConfig.gasUrl) {
+                statusBadge.innerText = "已設定";
+                statusBadge.className = "px-2 py-0.5 rounded text-2xs font-bold bg-green-100 text-green-700";
+            } else {
+                statusBadge.innerText = "未設定";
+                statusBadge.className = "px-2 py-0.5 rounded text-2xs font-bold bg-gray-100 text-gray-400";
+            }
+            
+            document.getElementById('cloud-last-sync').innerText = cloudConfig.lastSync || "無紀錄";
+        }
+
+        function toggleAutoSync(checked) {
+            cloudConfig.autoSync = checked;
+            saveCloudConfig();
+            showToast(checked ? "自動雲端同步功能已開啟" : "自動雲端同步功能已關閉", "info");
+        }
+
+        function testCloudConnection() {
+            const urlInput = document.getElementById('gas-url-input').value.trim();
+            if (!urlInput) {
+                showToast("請輸入 GAS Web App URL！", "error");
+                return;
+            }
+            
+            showToast("正在測試與雲端的連線...", "info");
+            
+            fetch(urlInput, {
+                method: "POST",
+                mode: "cors",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify({ action: "test" })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    cloudConfig.gasUrl = urlInput;
+                    saveCloudConfig();
+                    renderCloudTab();
+                    showToast(data.message, "success");
+                } else {
+                    showToast("測試連線失敗：" + data.message, "error");
+                }
+            })
+            .catch(err => {
+                showToast("連線異常，請檢查 URL 是否正確，或 GAS 權限是否設定為「任何人」！", "error");
+            });
+        }
+
+        function uploadToCloud() {
+            const urlInput = document.getElementById('gas-url-input').value.trim();
+            if (!urlInput) {
+                showToast("請先輸入有效的 GAS Web App URL！", "error");
+                return;
+            }
+            
+            cloudConfig.gasUrl = urlInput;
+            saveCloudConfig();
+            
+            showToast("正在上傳備份至雲端...", "info");
+            syncUploadToCloud(false);
+        }
+
+        function syncUploadToCloud(isSilent = false) {
+            if (!cloudConfig.gasUrl) return;
+            
+            const anim = document.getElementById('cloud-sync-anim');
+            const headerSync = document.getElementById('header-sync-status');
+            if (anim) anim.classList.remove('hidden');
+            if (headerSync) {
+                headerSync.classList.remove('hidden');
+                headerSync.classList.add('flex');
+            }
+            
+            const payload = {
+                currentCourseId: currentCourseId,
+                courses: courses
+            };
+            
+            fetch(cloudConfig.gasUrl, {
+                method: "POST",
+                mode: "cors",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify({
+                    action: "upload",
+                    payload: payload
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    cloudConfig.lastSync = new Date().toLocaleString();
+                    saveCloudConfig();
+                    if (!isSilent) {
+                        showToast(data.message, "success");
+                    } else {
+                        showToast("雲端背景同步成功！", "success");
+                    }
+                    if (currentActiveTab === 'cloud') {
+                        renderCloudTab();
+                    }
+                } else {
+                    if (!isSilent) showToast("同步失敗：" + data.message, "error");
+                }
+            })
+            .catch(err => {
+                if (!isSilent) showToast("備份同步失敗，請檢查連線狀態", "error");
+            })
+            .finally(() => {
+                if (anim) anim.classList.add('hidden');
+                if (headerSync) {
+                    headerSync.classList.add('hidden');
+                    headerSync.classList.remove('flex');
+                }
+            });
+        }
+
+        function downloadFromCloud() {
+            const urlInput = document.getElementById('gas-url-input').value.trim();
+            if (!urlInput) {
+                showToast("請先輸入有效的 GAS Web App URL！", "error");
+                return;
+            }
+            
+            cloudConfig.gasUrl = urlInput;
+            saveCloudConfig();
+            
+            openCustomConfirm("從雲端下載還原資料", "警告：從雲端下載將完全覆寫目前瀏覽器的所有課程資料！確定要還原至此版本嗎？", () => {
+                showToast("正在下載雲端備份資料...", "info");
+                
+                fetch(cloudConfig.gasUrl, {
+                    method: "POST",
+                    mode: "cors",
+                    headers: { "Content-Type": "text/plain" },
+                    body: JSON.stringify({ action: "download" })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        const cloudData = data.payload;
+                        courses = cloudData.courses || {};
+                        currentCourseId = cloudData.currentCourseId || "";
+                        
+                        const localPayload = {
+                            currentCourseId: currentCourseId,
+                            courses: courses
+                        };
+                        localStorage.setItem('MULTI_COURSE_GRADER_DATA_2026', JSON.stringify(localPayload));
+                        
+                        populateCourseSelector();
+                        if (currentCourseId && courses[currentCourseId]) {
+                            document.getElementById('course-selector').value = currentCourseId;
+                            syncWeightsUI();
+                        }
+                        refreshCurrentTab();
+                        showToast("雲端備份還原成功！", "success");
+                    } else {
+                        showToast("下載失敗：" + data.message, "error");
+                    }
+                })
+                .catch(err => {
+                    showToast("下載還原異常，請檢查連線狀態", "error");
+                });
+            });
+        }
+
+        function copyGasCode() {
+            const codeArea = document.getElementById('gas-code-source');
+            if (!codeArea) return;
+            
+            navigator.clipboard.writeText(codeArea.value.trim()).then(() => {
+                showToast("已成功複製 GAS 程式碼！請前往 GAS 編輯器貼上並部署。", "success");
+            }).catch(err => {
+                showToast("瀏覽器拒絕剪貼簿操作，請手動複製 Code.gs 檔案內容", "error");
+            });
+        }
+
+        // --- 核心資料存取與記憶管理 ---
+        function loadAllDataFromStorage() {
+            const stored = localStorage.getItem('MULTI_COURSE_GRADER_DATA_2026');
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    courses = parsed.courses || {};
+                    currentCourseId = parsed.currentCourseId || "";
+                    
+                    // 防禦性檢查：確保所有現有課程都有 peerEvalMode
+                    Object.keys(courses).forEach(id => {
+                        if (!courses[id].peerEvalMode) {
+                            courses[id].peerEvalMode = "none";
+                        }
+                    });
+                } catch (e) {
+                    courses = JSON.parse(JSON.stringify(MOCK_COURSES_TEMPLATES));
+                }
+            } else {
+                courses = JSON.parse(JSON.stringify(MOCK_COURSES_TEMPLATES));
+                currentCourseId = "course-web";
+                saveAllDataToStorage();
+            }
+        }
+
+        function saveAllDataToStorage() {
+            const payload = {
+                currentCourseId: currentCourseId,
+                courses: courses
+            };
+            localStorage.setItem('MULTI_COURSE_GRADER_DATA_2026', JSON.stringify(payload));
+            
+            if (cloudConfig.autoSync && cloudConfig.gasUrl) {
+                syncUploadToCloud(true);
+            }
+        }
+
+        function getActiveCourse() {
+            const course = courses[currentCourseId] || { name: "空課程", peerEvalMode: "none", weights: {att:33, pres:33, part:34}, projects:[], students:[] };
+            if (!course.peerEvalMode) course.peerEvalMode = "none";
+            return course;
+        }
+
+        // --- 課程管理邏輯 ---
+        function populateCourseSelector() {
+            const selector = document.getElementById('course-selector');
+            selector.innerHTML = "";
+            Object.keys(courses).forEach(id => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.innerText = courses[id].name;
+                selector.appendChild(opt);
+            });
+        }
+
+        function handleCourseChange(newId) {
+            currentCourseId = newId;
+            saveAllDataToStorage();
+            syncWeightsUI();
+            showToast(`已成功切換至課程：${courses[currentCourseId].name}`, "success");
+            refreshCurrentTab();
+        }
+
+        function openCreateCourseModal() { document.getElementById('create-course-modal').classList.remove('hidden'); }
+        function closeCreateCourseModal() { document.getElementById('create-course-modal').classList.add('hidden'); }
+        
+        function submitCreateCourse() {
+            const nameInput = document.getElementById('new-course-name');
+            const name = nameInput.value.trim();
+            if (!name) { showToast("請輸入完整的課程名稱！", "error"); return; }
+            
+            const newId = "course-" + Date.now();
+            courses[newId] = {
+                name: name,
+                peerEvalMode: "none", // 預設為都不使用
+                weights: { att: 20, pres: 40, part: 40 },
+                projects: [...DEFAULT_PROJECTS],
+                students: []
+            };
+            
+            currentCourseId = newId;
+            nameInput.value = "";
+            closeCreateCourseModal();
+            saveAllDataToStorage();
+            populateCourseSelector();
+            document.getElementById('course-selector').value = currentCourseId;
+            syncWeightsUI();
+            showToast(`新課程「${name}」開設成功！已自動為您切換。`, "success");
+            refreshCurrentTab();
+        }
+
+        function deleteCourse(id, event) {
+            event.stopPropagation();
+            if (Object.keys(courses).length <= 1) {
+                showToast("系統內必須維持至少一門課程，無法刪除最後一門！", "error");
+                return;
+            }
+            openCustomConfirm("刪除整門課程確認", `警告：您即將刪除「${courses[id].name}」及其中所有學生名冊、點名及成績歷史，此動作完全無法復原！確定嗎？`, () => {
+                delete courses[id];
+                if (currentCourseId === id) {
+                    currentCourseId = Object.keys(courses)[0];
+                }
+                saveAllDataToStorage();
+                populateCourseSelector();
+                document.getElementById('course-selector').value = currentCourseId;
+                syncWeightsUI();
+                showToast("該課程資料庫已被徹底抹除", "success");
+                renderCoursesCenter();
+            });
+        }
+
+        // --- 分頁與切換主控邏輯 ---
+        let currentActiveTab = 'dashboard';
+        function switchTab(tabId) {
+            const tabs = ['dashboard', 'courses', 'attendance', 'presentation', 'peer-eval', 'participation', 'roster', 'grades', 'cloud'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`btn-${t}`);
+                if (el) el.classList.add('hidden');
+                if (btn) btn.classList.remove('active-tab');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`btn-${tabId}`).classList.add('active-tab');
+            currentActiveTab = tabId;
+            refreshCurrentTab();
+        }
+
+        function refreshCurrentTab() {
+            switch (currentActiveTab) {
+                case 'dashboard': renderDashboard(); break;
+                case 'courses': renderCoursesCenter(); break;
+                case 'attendance': loadAttendanceDate(); break;
+                case 'presentation': initPresentationTab(); break;
+                case 'peer-eval': initPeerEvalTab(); break;
+                case 'participation': renderParticipationGrid(); break;
+                case 'roster': renderRosterTable(); break;
+                case 'grades': renderGradesTable(); break;
+                case 'cloud': renderCloudTab(); break;
+            }
+        }
+
+        // --- 1. 儀表板分頁處理 ---
+        function renderDashboard() {
+            const course = getActiveCourse();
+            document.getElementById('dash-course-title').innerText = `${course.name} 班級概況`;
+            document.getElementById('stat-total-students').innerText = `${course.students.length}人`;
+            
+            const groupSet = new Set(course.students.map(s => s.group).filter(g => g && g !== "未分組"));
+            document.getElementById('stat-total-groups').innerText = `${groupSet.size}組`;
+
+            let totalPossibleSlots = 0;
+            let totalAttendedSlots = 0;
+            let totalBonus = 0;
+
+            course.students.forEach(s => {
+                totalBonus += (s.bonusCount || 0);
+                if (s.attendance) {
+                    Object.values(s.attendance).forEach(status => {
+                        totalPossibleSlots++;
+                        if (status === "出席") totalAttendedSlots++;
+                        else if (status === "遲到") totalAttendedSlots += 0.7;
+                    });
+                }
+            });
+            const attRate = totalPossibleSlots > 0 ? Math.round((totalAttendedSlots / totalPossibleSlots) * 100) : 100;
+            document.getElementById('stat-attendance-rate').innerText = `${attRate}%`;
+            document.getElementById('stat-total-bonus').innerText = `${totalBonus}次`;
+
+            const todayStr = document.getElementById('attendance-date').value;
+            let p=0, a=0, l=0;
+            course.students.forEach(s => {
+                const st = s.attendance ? s.attendance[todayStr] : null;
+                if (st === "出席") p++;
+                else if (st === "缺席") a++;
+                else if (st === "遲到") l++;
+            });
+            document.getElementById('dash-present-count').innerText = p;
+            document.getElementById('dash-absent-count').innerText = a;
+            document.getElementById('dash-late-count').innerText = l;
+
+            const sorted = [...course.students].sort((x, y) => (y.bonusCount || 0) - (x.bonusCount || 0)).slice(0, 5);
+            const tbody = document.getElementById('dashboard-leaderboard');
+            tbody.innerHTML = "";
+            if(sorted.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="px-4 py-4 text-center text-xs text-gray-400">目前尚無加分數據</td></tr>`;
+            } else {
+                sorted.forEach((s, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 transition";
+                    tr.innerHTML = `
+                        <td class="px-4 py-2 font-bold text-amber-600">${idx+1}</td>
+                        <td class="px-4 py-2 text-xs">
+                            <span class="bg-gray-100 text-gray-600 px-1 rounded mr-1">${s.class}</span>
+                            <strong>${s.name}</strong> (${s.id})
+                        </td>
+                        <td class="px-4 py-2 text-right font-mono font-bold">${s.bonusCount || 0} 次</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // --- 1.5 課程中心渲染 ---
+        function renderCoursesCenter() {
+            const grid = document.getElementById('course-list-grid');
+            grid.innerHTML = "";
+            
+            Object.keys(courses).forEach(id => {
+                const course = courses[id];
+                const card = document.createElement('div');
+                const isCurrent = (id === currentCourseId);
+                card.className = `p-5 rounded-xl border transition-all cursor-pointer relative flex flex-col justify-between h-44 ${isCurrent ? 'bg-blue-50/70 border-blue-300 ring-2 ring-blue-500/20' : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm'}`;
+                card.onclick = () => handleCourseChange(id);
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-start justify-between">
+                            <span class="text-xs px-2 py-0.5 rounded font-bold ${isCurrent ? 'bg-blue-600 text-white':'bg-gray-100 text-gray-500'}">
+                                ${isCurrent ? '當前上課中' : '備用課程'}
+                            </span>
+                            <button onclick="deleteCourse('${id}', event)" class="text-gray-400 hover:text-red-600 p-1 rounded transition text-xs" title="刪除本課">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mt-2 tracking-wide">${course.name}</h3>
+                        <p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-users mr-1"></i>修課總人數: ${course.students.length} 名</p>
+                    </div>
+                    <div class="border-t border-dashed border-gray-200 pt-2 flex justify-between text-2xs text-gray-400 font-mono">
+                        <span>出席: ${course.weights.att}%</span>
+                        <span>報告: ${course.weights.pres}%</span>
+                        <span>發言: ${course.weights.part}%</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- 2. 出缺席點名邏輯 ---
+        function loadAttendanceDate() {
+            const course = getActiveCourse();
+            const dateStr = document.getElementById('attendance-date').value;
+            const tbody = document.getElementById('attendance-table-body');
+            tbody.innerHTML = "";
+
+            if (course.students.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-gray-400">本課程尚無學生名冊，請先到【學生名冊管理】匯入或新增學生。</td></tr>`;
+                return;
+            }
+
+            course.students.forEach(s => {
+                if (!s.attendance) s.attendance = {};
+                if (!s.attendance[dateStr]) s.attendance[dateStr] = "出席";
+                
+                const status = s.attendance[dateStr];
+                
+                let historyTotal = 0;
+                let historyPresent = 0;
+                Object.values(s.attendance).forEach(v => {
+                    historyTotal++;
+                    if (v === "出席") historyPresent++;
+                    else if (v === "遲到") historyPresent += 0.7;
+                });
+                const individualRate = historyTotal > 0 ? Math.round((historyPresent / historyTotal) * 100) : 100;
+
+                let statusBadge = `<span class="bg-green-100 text-green-800 text-xs px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-check-circle mr-1"></i>出席</span>`;
+                if(status === "缺席") statusBadge = `<span class="bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-circle-xmark mr-1"></i>缺席</span>`;
+                if(status === "遲到") statusBadge = `<span class="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-medium"><i class="fa-solid fa-clock mr-1"></i>遲到</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50/80 transition text-xs";
+                tr.innerHTML = `
+                    <td class="px-6 py-3 font-mono text-gray-400 font-bold">${s.no || '-'}</td>
+                    <td class="px-6 py-3 text-gray-500 font-medium">${s.class}</td>
+                    <td class="px-6 py-3 font-mono font-medium">${s.id}</td>
+                    <td class="px-6 py-3 font-bold text-gray-900">${s.name}</td>
+                    <td class="px-6 py-3"><span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${s.group || '未分組'}</span></td>
+                    <td class="px-6 py-3 text-center">${statusBadge}</td>
+                    <td class="px-6 py-3 text-center">
+                        <div class="inline-flex rounded-md shadow-sm text-2xs" role="group">
+                            <button onclick="changeAttendance('${s.id}', '出席')" class="px-2 py-1 border border-gray-200 rounded-l-md bg-white hover:bg-green-50 ${status === '出席'?'!bg-green-600 text-white border-green-600':''}">出席</button>
+                            <button onclick="changeAttendance('${s.id}', '缺席')" class="px-2 py-1 border-t border-b border-gray-200 bg-white hover:bg-red-50 ${status === '缺席'?'!bg-red-600 text-white border-red-600':''}">缺席</button>
+                            <button onclick="changeAttendance('${s.id}', '遲到')" class="px-2 py-1 border border-gray-200 rounded-r-md bg-white hover:bg-amber-50 ${status === '遲到'?'!bg-amber-600 text-white border-amber-600':''}">遲到</button>
+                        </div>
+                    </td>
+                    <td class="px-6 py-3 text-center">
+                        <button onclick="showAttendanceHistoryModal('${s.id}')" class="text-blue-600 hover:text-blue-800 font-medium transition inline-flex items-center space-x-1">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>歷次明細</span>
+                        </button>
+                    </td>
+                    <td class="px-6 py-3 text-right font-mono font-bold text-gray-600">${individualRate}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function changeAttendance(studentId, newStatus) {
+            const course = getActiveCourse();
+            const dateStr = document.getElementById('attendance-date').value;
+            const student = course.students.find(s => s.id === studentId);
+            if (student) {
+                student.attendance[dateStr] = newStatus;
+                saveAllDataToStorage();
+                loadAttendanceDate();
+            }
+        }
+
+        function setAllAttendance(status) {
+            const course = getActiveCourse();
+            const dateStr = document.getElementById('attendance-date').value;
+            if(course.students.length === 0) return;
+            course.students.forEach(s => {
+                if(!s.attendance) s.attendance = {};
+                s.attendance[dateStr] = status;
+            });
+            saveAllDataToStorage();
+            loadAttendanceDate();
+            showToast(`已將今日所有人狀態一鍵重設為【${status}】`, "success");
+        }
+
+        // --- 3. 多重分組報告評分邏輯 ---
+        let selectedProject = "";
+        let selectedGroupForScore = "";
+
+        function openAddProjectModal() { document.getElementById('add-project-modal').classList.remove('hidden'); }
+        function closeAddProjectModal() { document.getElementById('add-project-modal').classList.add('hidden'); }
+        
+        function submitNewProject() {
+            const input = document.getElementById('new-project-name');
+            const name = input.value.trim();
+            if(!name) return;
+            
+            const course = getActiveCourse();
+            if(!course.projects.includes(name)) {
+                course.projects.push(name);
+                saveAllDataToStorage();
+                showToast(`成功新增報告項目：${name}`, "success");
+            }
+            input.value = "";
+            closeAddProjectModal();
+            initPresentationTab();
+        }
+
+        function removeProject(projectName, event) {
+            event.stopPropagation();
+            openCustomConfirm("刪除報告項目", `您確定要移除「${projectName}」整個報告項目的所有小組分數嗎？`, () => {
+                const course = getActiveCourse();
+                course.projects = course.projects.filter(p => p !== projectName);
+                course.students.forEach(s => {
+                    if (s.presentationScores) delete s.presentationScores[projectName];
+                });
+                if(selectedProject === projectName) selectedProject = course.projects[0] || "";
+                saveAllDataToStorage();
+                initPresentationTab();
+                showToast("項目已成功抹除", "success");
+            });
+        }
+
+        function initPresentationTab() {
+            const course = getActiveCourse();
+            const container = document.getElementById('project-tabs-container');
+            container.innerHTML = "";
+
+            if (course.projects.length === 0 && DEFAULT_PROJECTS.length > 0) {
+                course.projects = [...DEFAULT_PROJECTS];
+                saveAllDataToStorage();
+            }
+
+            if (!selectedProject || !course.projects.includes(selectedProject)) {
+                selectedProject = course.projects[0] || "";
+            }
+
+            course.projects.forEach(p => {
+                const btn = document.createElement('button');
+                const isSelected = (p === selectedProject);
+                btn.className = `px-3 py-1.5 text-xs rounded-lg font-medium transition flex items-center space-x-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
+                btn.onclick = () => { selectedProject = p; initPresentationTab(); };
+                btn.innerHTML = `
+                    <span>${p}</span>
+                    <i class="fa-solid fa-circle-xmark ml-1 opacity-60 hover:opacity-100" onclick="removeProject('${p}', event)"></i>
+                `;
+                container.appendChild(btn);
+            });
+
+            renderPresentationGroups();
+            renderPresentationScorePanel();
+        }
+
+        function renderPresentationGroups() {
+            const course = getActiveCourse();
+            const listContainer = document.getElementById('presentation-groups-list');
+            listContainer.innerHTML = "";
+
+            const uniqueGroups = Array.from(new Set(course.students.map(s => s.group).filter(g => g && g !== "未分組"))).sort();
+            
+            if(uniqueGroups.length === 0) {
+                listContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">目前全班皆為「未分組」狀態。<br>請至修課名冊為學生排定組別。</p>`;
+                return;
+            }
+
+            uniqueGroups.forEach(g => {
+                const members = course.students.filter(s => s.group === g);
+                const isSelected = (g === selectedGroupForScore);
+                
+                const sampleSc = members[0]?.presentationScores?.[selectedProject] ?? "未評";
+
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-2.5 rounded-lg border text-xs transition flex justify-between items-center ${isSelected ? 'bg-blue-50 border-blue-400 font-bold text-blue-900' : 'bg-white border-gray-100 hover:border-gray-200'}`;
+                btn.onclick = () => { selectedGroupForScore = g; renderPresentationGroups(); renderPresentationScorePanel(); };
+                btn.innerHTML = `
+                    <div>
+                        <div class="font-medium text-gray-800">${g} <span class="text-2xs text-gray-400 font-normal">(${members.length}人)</span></div>
+                        <div class="text-2xs text-gray-400 font-normal truncate mt-0.5">${members.map(m=>m.name).join(', ')}</div>
+                    </div>
+                    <span class="px-1.5 py-0.5 rounded font-mono font-bold ${sampleSc==='未評'?'bg-gray-100 text-gray-400':'bg-indigo-100 text-indigo-700'}">${sampleSc}</span>
+                `;
+                listContainer.appendChild(btn);
+            });
+        }
+
+        function renderPresentationScorePanel() {
+            const panel = document.getElementById('presentation-score-panel');
+            if (!selectedProject) {
+                panel.innerHTML = `<div class="text-center py-12 text-gray-400"><i class="fa-solid fa-folder-open text-4xl block mb-2"></i>請先點擊上方按紐新增報告評分項目</div>`;
+                return;
+            }
+            if (!selectedGroupForScore) {
+                panel.innerHTML = `<div class="text-center py-12 text-gray-400"><i class="fa-solid fa-people-group text-4xl block mb-2"></i>請點選左側小組為【${selectedProject}】輸入分數</div>`;
+                return;
+            }
+
+            const course = getActiveCourse();
+            const members = course.students.filter(s => s.group === selectedGroupForScore);
+            const currentScore = members[0]?.presentationScores?.[selectedProject] || "";
+
+            panel.innerHTML = `
+                <div class="space-y-4 text-xs">
+                    <div class="border-b pb-2">
+                        <span class="bg-indigo-600 text-white text-2xs px-1.5 py-0.5 rounded mr-1 font-bold">當前評估項目</span>
+                        <strong class="text-base text-gray-800">${selectedProject}</strong>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <label class="block font-bold text-gray-700 mb-2">請指派【${selectedGroupForScore}】之報告原始基準分 (0-100)：</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="group-score-input" min="0" max="100" value="${currentScore}" placeholder="例如: 85" class="border rounded-lg px-3 py-2 text-sm w-32 focus:ring-2 focus:ring-blue-500 font-bold font-mono">
+                            <button onclick="saveGroupScore()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition text-sm shadow-sm">儲存分數</button>
+                        </div>
+                        <p class="text-2xs text-gray-400 mt-2">* 同組成員將同步繼承此基本分。若在互評分頁啟用了「使用平均貢獻度」，此基本分將會乘上個別的互評調幅係數。</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-600 mb-1">小組成員名單：</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${members.map(m => `<span class="bg-gray-200/70 text-gray-700 px-2 py-1 rounded font-medium">${m.name} (${m.id})</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveGroupScore() {
+            const val = parseInt(document.getElementById('group-score-input').value);
+            if (isNaN(val) || val < 0 || val > 100) { showToast("請輸入 0 ~ 100 之間的有效分數點", "error"); return; }
+
+            const course = getActiveCourse();
+            course.students.forEach(s => {
+                if (s.group === selectedGroupForScore) {
+                    if (!s.presentationScores) s.presentationScores = {};
+                    s.presentationScores[selectedProject] = val;
+                }
+            });
+            saveAllDataToStorage();
+            showToast(`已成功登錄 ${selectedGroupForScore} 的【${selectedProject}】分數為 ${val} 分！`, "success");
+            renderPresentationGroups();
+            renderPresentationScorePanel();
+        }
+
+        // --- STREAMING_CHUNK: Processing peer evaluation options and data saving... ---
+        // --- 3.5 組內成員互評邏輯 ---
+        let selectedPeerStudentId = "";
+        
+        function changePeerEvalMode(newMode) {
+            const course = getActiveCourse();
+            course.peerEvalMode = newMode;
+            saveAllDataToStorage();
+            showToast(`已將互評計分模式更變為：${newMode === 'none' ? '都不使用' : '使用平均貢獻度'}`, "success");
+            
+            // 即時同步學期成績大表的公式文字與重新計算
+            refreshCurrentTab();
+        }
+
+        function initPeerEvalTab() {
+            const course = getActiveCourse();
+            
+            // 初始化模式選擇器 UI 的選取值
+            const modeSelector = document.getElementById('peer-eval-mode-selector');
+            if (modeSelector) {
+                modeSelector.value = course.peerEvalMode || "none";
+            }
+
+            const treeContainer = document.getElementById('peer-groups-tree');
+            treeContainer.innerHTML = "";
+
+            const uniqueGroups = Array.from(new Set(course.students.map(s => s.group).filter(g => g && g !== "未分組"))).sort();
+            if (uniqueGroups.length === 0) {
+                treeContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">無小組資訊，無法進行互評。</p>`;
+                return;
+            }
+
+            uniqueGroups.forEach(g => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = "space-y-1 bg-gray-50/50 p-2 rounded-lg border border-gray-100";
+                groupDiv.innerHTML = `<div class="text-xs font-bold text-slate-500 mb-1"><i class="fa-solid fa-folder-tree mr-1"></i>${g}</div>`;
+                
+                const members = course.students.filter(s => s.group === g);
+                members.forEach(m => {
+                    const item = document.createElement('button');
+                    const isSelected = (m.id === selectedPeerStudentId);
+                    
+                    if(!m.peerEval) m.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+                    const avg = Math.round((m.peerEval.contribution + m.peerEval.communication + m.peerEval.punctuality) / 3);
+                    const isFreeRider = avg < 60;
+
+                    item.className = `w-full text-left text-xs px-2 py-1.5 rounded transition flex justify-between items-center ${isSelected ? 'bg-blue-600 text-white font-bold' : 'bg-white hover:bg-gray-100 text-gray-700'}`;
+                    item.onclick = () => { selectedPeerStudentId = m.id; initPeerEvalTab(); };
+                    item.innerHTML = `
+                        <span>${m.name} ${isFreeRider?'⚠️':''}</span>
+                        <span class="font-mono text-2xs ${isSelected?'text-blue-200':'text-gray-400'}">均分: ${avg}</span>
+                    `;
+                    groupDiv.appendChild(item);
+                });
+                treeContainer.appendChild(groupDiv);
+            });
+
+            renderPeerEvalPanel();
+        }
+
+        function renderPeerEvalPanel() {
+            const panel = document.getElementById('peer-eval-panel');
+            if(!selectedPeerStudentId) {
+                panel.innerHTML = `<div class="text-center py-16 text-gray-400"><i class="fa-solid fa-users-viewfinder text-5xl mb-3 block text-purple-300"></i>請點選左側名冊節點開始登錄組內互評分數</div>`;
+                return;
+            }
+
+            const course = getActiveCourse();
+            const student = course.students.find(s => s.id === selectedPeerStudentId);
+            if(!student) return;
+
+            if(!student.peerEval) student.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+            const pe = student.peerEval;
+
+            panel.innerHTML = `
+                <div class="space-y-6 text-xs">
+                    <div class="border-b pb-3 flex justify-between items-center">
+                        <div>
+                            <span class="bg-purple-600 text-white text-2xs px-2 py-0.5 rounded font-bold mr-1">${student.group}</span>
+                            <strong class="text-base text-gray-800">${student.name}</strong> <span class="text-gray-400">(${student.id})</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-gray-500 font-medium">班級：</span><span class="font-bold text-gray-700">${student.class}</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                            <label class="block font-bold text-gray-700">1. 團隊貢獻度 (1-100)</label>
+                            <input type="number" id="pe-contribution" min="1" max="100" value="${pe.contribution}" class="w-full border rounded-lg p-2 font-mono font-bold text-center text-sm focus:ring-2 focus:ring-purple-500">
+                            <p class="text-2xs text-gray-400">實質編碼、企劃或報告產出質量</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                            <label class="block font-bold text-gray-700">2. 團隊配合與溝通 (1-100)</label>
+                            <input type="number" id="pe-communication" min="1" max="100" value="${pe.communication}" class="w-full border rounded-lg p-2 font-mono font-bold text-center text-sm focus:ring-2 focus:ring-purple-500">
+                            <p class="text-2xs text-gray-400">開會出席狀況與訊息回覆積極度</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                            <label class="block font-bold text-gray-700">3. 任務準時交付度 (1-100)</label>
+                            <input type="number" id="pe-punctuality" min="1" max="100" value="${pe.punctuality}" class="w-full border rounded-lg p-2 font-mono font-bold text-center text-sm focus:ring-2 focus:ring-purple-500">
+                            <p class="text-2xs text-gray-400">指派工作的完成時效，有無拖延</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button onclick="savePeerEvalScores()" class="bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm px-6 py-2 rounded-lg shadow-sm transition"><i class="fa-solid fa-floppy-disk mr-1"></i>儲存互評數據</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function savePeerEvalScores() {
+            const con = parseInt(document.getElementById('pe-contribution').value);
+            const com = parseInt(document.getElementById('pe-communication').value);
+            const pun = parseInt(document.getElementById('pe-punctuality').value);
+
+            if([con, com, pun].some(v => isNaN(v) || v < 1 || v > 100)) {
+                showToast("所有互評指標均必須填寫 1 ~ 100 之間的分數！", "error");
+                return;
+            }
+
+            const course = getActiveCourse();
+            const student = course.students.find(s => s.id === selectedPeerStudentId);
+            if(student) {
+                student.peerEval = { contribution: con, communication: com, punctuality: pun };
+                saveAllDataToStorage();
+                showToast(`已成功儲存 ${student.name} 的匿名互評整合數據！`, "success");
+                initPeerEvalTab();
+            }
+        }
+
+        // --- 4. 課堂即時發言加分網格邏輯 ---
+        function renderParticipationGrid() {
+            const course = getActiveCourse();
+            const grid = document.getElementById('participation-grid');
+            const searchVal = document.getElementById('participation-search').value.toLowerCase().trim();
+            grid.innerHTML = "";
+
+            if(course.students.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-8 text-gray-400 text-xs">尚無任何學生數據，無法使用發言加分面板</div>`;
+                return;
+            }
+
+            const filtered = course.students.filter(s => 
+                s.name.toLowerCase().includes(searchVal) || 
+                s.id.toLowerCase().includes(searchVal) ||
+                s.class.toLowerCase().includes(searchVal)
+            );
+
+            filtered.forEach(s => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:shadow-md transition flex items-center justify-between";
+                card.innerHTML = `
+                    <div class="truncate mr-2">
+                        <div class="text-2xs text-gray-400 font-mono">${s.class} | ${s.id}</div>
+                        <div class="text-sm font-bold text-gray-800 truncate">${s.name}</div>
+                    </div>
+                    <div class="flex items-center space-x-2 flex-shrink-0">
+                        <button onclick="adjustBonus('${s.id}', -1)" class="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-xs transition">-</button>
+                        <span class="w-8 text-center font-mono font-bold text-sm bg-blue-50 text-blue-700 rounded py-0.5" id="bonus-counter-${s.id}">${s.bonusCount || 0}</span>
+                        <button onclick="adjustBonus('${s.id}', 1)" class="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold text-xs transition">+</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function adjustBonus(studentId, delta) {
+            const course = getActiveCourse();
+            const student = course.students.find(s => s.id === studentId);
+            if(student) {
+                if(!student.bonusCount) student.bonusCount = 0;
+                student.bonusCount = Math.max(0, student.bonusCount + delta);
+                saveAllDataToStorage();
+                document.getElementById(`bonus-counter-${studentId}`).innerText = student.bonusCount;
+                showToast(`${student.name} 目前累計課堂發言 ${student.bonusCount} 次`, "info");
+            }
+        }
+
+        function triggerResetBonusConfirm() {
+            openCustomConfirm("清空發言確認", "您確定要將「當前課程」全體同學的累計發言加分次數一鍵歸零嗎？", () => {
+                const course = getActiveCourse();
+                course.students.forEach(s => s.bonusCount = 0);
+                saveAllDataToStorage();
+                renderParticipationGrid();
+                showToast("已清空本課程所有人發言加分數據", "success");
+            });
+        }
+
+        // --- 5. 學生名冊管理邏輯 ---
+        function buildGroupOptions() {
+            const select = document.getElementById('student-group');
+            if(!select) return;
+            select.innerHTML = "";
+            GROUPS_ARRAY.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.innerText = g;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderRosterTable() {
+            const course = getActiveCourse();
+            const tbody = document.getElementById('roster-table-body');
+            tbody.innerHTML = "";
+
+            if(course.students.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-xs text-gray-400">目前本課名冊空空如也，請點擊上方按鈕手動新增或上傳點名 Excel 檔案。</td></tr>`;
+                return;
+            }
+
+            const sorted = [...course.students].sort((x, y) => (x.no || 0) - (y.no || 0));
+
+            sorted.forEach((s, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50/80 transition text-xs";
+                
+                let groupSelectorHtml = `<select onchange="updateStudentGroupDirectly('${s.id}', this.value)" class="border border-gray-200 rounded px-1 py-0.5 bg-white text-2xs focus:outline-none">`;
+                GROUPS_ARRAY.forEach(g => {
+                    groupSelectorHtml += `<option value="${g}" ${s.group === g ? 'selected' : ''}>${g}</option>`;
+                });
+                groupSelectorHtml += `</select>`;
+
+                tr.innerHTML = `
+                    <td class="px-6 py-3 font-mono text-gray-400 font-bold">${s.no || '-'}</td>
+                    <td class="px-6 py-3 text-gray-600 font-medium">${s.class}</td>
+                    <td class="px-6 py-3 font-mono font-medium">${s.id}</td>
+                    <td class="px-6 py-3 font-bold text-gray-900">${s.name}</td>
+                    <td class="px-6 py-3">${groupSelectorHtml}</td>
+                    <td class="px-6 py-3 text-center space-x-1">
+                        <button onclick="editStudent('${s.id}')" class="text-blue-600 hover:text-blue-800 px-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 px-1"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateStudentGroupDirectly(studentId, newGroup) {
+            const course = getActiveCourse();
+            const student = course.students.find(s => s.id === studentId);
+            if(student) {
+                student.group = newGroup;
+                saveAllDataToStorage();
+                showToast(`已直接將 ${student.name} 分配至 ${newGroup}`, "success");
+            }
+        }
+
+        function openAddStudentModal() {
+            document.getElementById('modal-title').innerText = "手動新增修課學生";
+            document.getElementById('edit-student-index').value = "";
+            document.getElementById('student-form').reset();
+            buildGroupOptions();
+            document.getElementById('add-student-modal').classList.remove('hidden');
+        }
+
+        function closeAddStudentModal() { document.getElementById('add-student-modal').classList.add('hidden'); }
+
+        function saveStudent(event) {
+            event.preventDefault();
+            const course = getActiveCourse();
+            const sNo = parseInt(document.getElementById('student-no').value);
+            const sClass = document.getElementById('student-class').value.trim();
+            const sId = document.getElementById('student-id').value.trim();
+            const sName = document.getElementById('student-name').value.trim();
+            const sGroup = document.getElementById('student-group').value;
+
+            const editId = document.getElementById('edit-student-index').value;
+
+            if (editId === "") {
+                if(course.students.some(s => s.id === sId)) { showToast("學號重複！系統內已有此學號之修課生", "error"); return; }
+                course.students.push({
+                    no: sNo, class: sClass, id: sId, name: sName, group: sGroup,
+                    attendance: {}, bonusCount: 0, presentationScores: {},
+                    peerEval: { contribution: 80, communication: 80, punctuality: 80 }
+                });
+                showToast("全新修課生已成功加入名冊", "success");
+            } else {
+                const target = course.students.find(s => s.id === editId);
+                if (target) {
+                    target.no = sNo;
+                    target.class = sClass;
+                    target.id = sId;
+                    target.name = sName;
+                    target.group = sGroup;
+                    showToast("基本資料變更已儲存", "success");
+                }
+            }
+            saveAllDataToStorage();
+            closeAddStudentModal();
+            renderRosterTable();
+        }
+
+        function editStudent(studentId) {
+            const course = getActiveCourse();
+            const s = course.students.find(s => s.id === studentId);
+            if(!s) return;
+
+            document.getElementById('modal-title').innerText = "編輯學生基本資料";
+            document.getElementById('edit-student-index').value = s.id;
+            
+            document.getElementById('student-no').value = s.no || '';
+            document.getElementById('student-class').value = s.class || '';
+            document.getElementById('student-id').value = s.id || '';
+            document.getElementById('student-name').value = s.name || '';
+            
+            buildGroupOptions();
+            document.getElementById('student-group').value = s.group || '未分組';
+
+            document.getElementById('add-student-modal').classList.remove('hidden');
+        }
+
+        function deleteStudent(studentId) {
+            const course = getActiveCourse();
+            const s = course.students.find(s => s.id === studentId);
+            if(!s) return;
+
+            openCustomConfirm("刪除修課學生", `確認要將「${s.name} (${s.id})」從本課名冊中完全移除嗎？(此動作將清除其點名與分數紀錄)`, () => {
+                course.students = course.students.filter(item => item.id !== studentId);
+                saveAllDataToStorage();
+                renderRosterTable();
+                showToast("學生資料已成功移除", "info");
+            });
+        }
+
+        // --- STREAMING_CHUNK: Calculations for course grading table with peer modes... ---
+        // --- 6. 學期成績總覽表格動態渲染與核心計分公式邏輯 ---
+
+        // 貢獻係數之教師常用限制規則：避免組內分數差距過大，設定上下限
+        const CONTRIBUTION_COEFFICIENT_MAX = 1.2;
+        const CONTRIBUTION_COEFFICIENT_MIN = 0.8;
+
+        // 依原始（未限制前）貢獻係數判斷等級標籤與顯示色系
+        function getContributionLabel(rawCoefficient) {
+            if (rawCoefficient >= 1.20) return { label: "貢獻明顯高於平均", color: "bg-blue-100 text-blue-700" };
+            if (rawCoefficient >= 1.10) return { label: "貢獻優良", color: "bg-emerald-100 text-emerald-700" };
+            if (rawCoefficient >= 0.90) return { label: "一般水準", color: "bg-gray-100 text-gray-600" };
+            if (rawCoefficient >= 0.80) return { label: "參與不足", color: "bg-amber-100 text-amber-700" };
+            return { label: "明顯未盡責", color: "bg-red-100 text-red-700" };
+        }
+
+        function renderGradesTable() {
+            const course = getActiveCourse();
+            const wrapper = document.getElementById('grades-table-wrapper');
+            wrapper.innerHTML = "";
+
+            if(course.students.length === 0) {
+                wrapper.innerHTML = `<p class="text-center py-8 text-xs text-gray-400">目前尚無學生成績數據，請先建立名冊與小組分數。</p>`;
+                return;
+            }
+
+            const projects = course.projects || [];
+            const peerEvalMode = course.peerEvalMode || "none";
+
+            // 即時更新成績說明區的公式文字描述
+            const formulaDesc = document.getElementById('grades-formula-desc');
+            if (formulaDesc) {
+                if (peerEvalMode === "average") {
+                    formulaDesc.innerHTML = `2. 小組報告最終實得 = 小組多項目報告平均分 × 貢獻係數 (個人互評得分 ÷ 小組互評總平均分，限制於0.80~1.20) <span class="text-purple-600 font-bold">*(當前已設定：使用平均貢獻度係數調幅)*</span>`;
+                } else {
+                    formulaDesc.innerHTML = `2. 小組報告最終實得 = 小組多項目報告平均分 <span class="text-amber-600 font-bold">*(當前已設定：都不使用，直接繼承報告基分)*</span>`;
+                }
+            }
+
+            // 計算各小組的「組內互評平均分」
+            const groupPeerAverages = {};
+            const uniqueGroups = Array.from(new Set(course.students.map(s => s.group).filter(g => g && g !== "未分組")));
+            
+            uniqueGroups.forEach(g => {
+                const members = course.students.filter(s => s.group === g);
+                let sum = 0;
+                members.forEach(m => {
+                    if(!m.peerEval) m.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+                    sum += (m.peerEval.contribution + m.peerEval.communication + m.peerEval.punctuality) / 3;
+                });
+                groupPeerAverages[g] = members.length > 0 ? (sum / members.length) : 80;
+            });
+
+            const calculatedStudents = course.students.map(s => {
+                // 1. 出席公式
+                let totalSlots = 0;
+                let attendedSlots = 0;
+                if(s.attendance) {
+                    Object.values(s.attendance).forEach(v => {
+                        totalSlots++;
+                        if(v === "出席") attendedSlots++;
+                        else if(v === "遲到") attendedSlots += 0.7;
+                    });
+                }
+                const attRate = totalSlots > 0 ? (attendedSlots / totalSlots) * 100 : 100;
+                const attScore = attRate;
+
+                // 2. 報告原始多項目平均分
+                let pSum = 0;
+                let pCount = 0;
+                projects.forEach(p => {
+                    const sc = s.presentationScores?.[p];
+                    if(sc !== undefined && sc !== null) {
+                        pSum += sc;
+                        pCount++;
+                    }
+                });
+                const projectBaseAvg = pCount > 0 ? (pSum / pCount) : 0;
+
+                // 3. 互評修正與實得報告分數計算 (根據 peerEvalMode 切換規則)
+                if(!s.peerEval) s.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+                const personalPeerScore = (s.peerEval.contribution + s.peerEval.communication + s.peerEval.punctuality) / 3;
+                
+                let finalProjectScore = projectBaseAvg;
+                let contributionRaw = null;        // 原始貢獻係數（未限制上下限前）
+                let contributionCoefficient = null; // 實際套用之貢獻係數（已限制於0.8~1.2）
+                let contributionInfo = null;        // 等級標籤與色系
+
+                // 核心邏輯：若為「average」才進行比例調幅，否則為「none」時維持原分不進行調幅
+                if (peerEvalMode === "average") {
+                    if (s.group && s.group !== "未分組" && groupPeerAverages[s.group] > 0) {
+                        const groupAvg = groupPeerAverages[s.group];
+                        // 個人貢獻係數 = 個人平均貢獻度 ÷ 小組平均貢獻度
+                        contributionRaw = personalPeerScore / groupAvg;
+                        // 教師常用限制規則：最高係數1.2，最低係數0.8，超出範圍一律以邊界值採計
+                        contributionCoefficient = Math.min(CONTRIBUTION_COEFFICIENT_MAX, Math.max(CONTRIBUTION_COEFFICIENT_MIN, contributionRaw));
+                        contributionInfo = getContributionLabel(contributionRaw);
+                        finalProjectScore = Math.min(100, projectBaseAvg * contributionCoefficient);
+                    }
+                } else {
+                    finalProjectScore = projectBaseAvg;
+                }
+
+                const projectWeighted = finalProjectScore * (course.weights.pres / 100);
+
+                // 4. 發言得分計算
+                const partScore = Math.min(100, (s.bonusCount || 0) * 5);
+
+                // 5. 最終學期加權成績公式計算
+                const finalGrade = (attScore * (course.weights.att / 100)) + 
+                                   (finalProjectScore * (course.weights.pres / 100)) + 
+                                   (partScore * (course.weights.part / 100));
+
+                return {
+                    original: s,
+                    no: s.no || 0,
+                    class: s.class || '',
+                    id: s.id || '',
+                    name: s.name || '',
+                    group: s.group || '未分組',
+                    attRate: attRate,
+                    attScore: attScore,
+                    projectBaseAvg: projectBaseAvg,
+                    personalPeerScore: personalPeerScore,
+                    contributionRaw: contributionRaw,
+                    contributionCoefficient: contributionCoefficient,
+                    contributionInfo: contributionInfo,
+                    finalProjectScore: finalProjectScore,
+                    projectWeighted: projectWeighted,
+                    bonusCount: s.bonusCount || 0,
+                    partScore: partScore,
+                    finalGrade: finalGrade
+                };
+            });
+
+            calculatedStudents.sort((a, b) => {
+                let valA, valB;
+                if (gradesSortField.startsWith('proj_')) {
+                    const projName = gradesSortField.replace('proj_', '');
+                    valA = a.original.presentationScores?.[projName] ?? -1;
+                    valB = b.original.presentationScores?.[projName] ?? -1;
+                } else {
+                    valA = a[gradesSortField];
+                    valB = b[gradesSortField];
+                }
+
+                if (typeof valA === 'string') {
+                    return gradesSortOrder === 'asc'
+                        ? valA.localeCompare(valB, 'zh-Hant')
+                        : valB.localeCompare(valA, 'zh-Hant');
+                } else {
+                    return gradesSortOrder === 'asc'
+                        ? valA - valB
+                        : valB - valA;
+                }
+            });
+
+            let tableHtml = `
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-50 text-gray-600 text-2xs uppercase tracking-wider select-none">
+                        <tr>
+                            <th onclick="sortGrades('no')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition whitespace-nowrap">No. ${getSortIcon('no')}</th>
+                            <th onclick="sortGrades('class')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition whitespace-nowrap">班級 ${getSortIcon('class')}</th>
+                            <th onclick="sortGrades('id')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition whitespace-nowrap">學號 ${getSortIcon('id')}</th>
+                            <th onclick="sortGrades('name')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition whitespace-nowrap">姓名 ${getSortIcon('name')}</th>
+                            <th onclick="sortGrades('group')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition whitespace-nowrap">分組 ${getSortIcon('group')}</th>
+                            <th onclick="sortGrades('attRate')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center whitespace-nowrap">歷史出席率 ${getSortIcon('attRate')}</th>
+                            <th onclick="sortGrades('attScore')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-blue-50/50 whitespace-nowrap">出席得分 (${course.weights.att}%) ${getSortIcon('attScore')}</th>
+                            ${projects.map(p => `<th onclick="sortGrades('proj_${p}')" class="px-3 py-3 cursor-pointer hover:bg-gray-100 transition text-center text-slate-500 font-normal whitespace-nowrap">報告:${p} ${getSortIcon('proj_' + p)}</th>`).join('')}
+                            <th onclick="sortGrades('projectBaseAvg')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-indigo-50/40 whitespace-nowrap">報告平均基分 ${getSortIcon('projectBaseAvg')}</th>
+                            <th onclick="sortGrades('personalPeerScore')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center text-purple-600 whitespace-nowrap">個人互評得分 ${getSortIcon('personalPeerScore')}</th>
+                            <th class="px-4 py-3 text-center text-purple-500 whitespace-nowrap" title="個人互評得分 ÷ 小組互評均分，實際套用值限制於0.80~1.20">貢獻係數 (0.80~1.20)</th>
+                            <th onclick="sortGrades('finalProjectScore')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-purple-50/40 whitespace-nowrap">報告最終實得 ${getSortIcon('finalProjectScore')}</th>
+                            <th onclick="sortGrades('projectWeighted')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-indigo-50/70 whitespace-nowrap">報告加權 (${course.weights.pres}%) ${getSortIcon('projectWeighted')}</th>
+                            <th onclick="sortGrades('bonusCount')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center whitespace-nowrap">發言次數 ${getSortIcon('bonusCount')}</th>
+                            <th onclick="sortGrades('partScore')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-center bg-amber-50/60 whitespace-nowrap">發言得分 (${course.weights.part}%) ${getSortIcon('partScore')}</th>
+                            <th onclick="sortGrades('finalGrade')" class="px-4 py-3 cursor-pointer hover:bg-gray-100 transition text-right text-sm text-blue-900 font-bold whitespace-nowrap">學期總加權成績 ${getSortIcon('finalGrade')}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 text-2xs text-gray-700">
+            `;
+
+            calculatedStudents.forEach(item => {
+                const s = item.original;
+                const isWarning = item.finalGrade < 60;
+
+                tableHtml += `
+                    <tr class="hover:bg-gray-50/80 transition ${isWarning ? 'bg-red-50/30' : ''}">
+                        <td class="px-4 py-2.5 font-mono text-gray-400 font-bold">${s.no || '-'}</td>
+                        <td class="px-4 py-2.5 font-medium text-gray-500">${s.class}</td>
+                        <td class="px-4 py-2.5 font-mono">${s.id}</td>
+                        <td class="px-4 py-2.5 font-bold text-gray-900">${s.name}</td>
+                        <td class="px-4 py-2.5"><span class="bg-gray-100 px-1 py-0.5 rounded text-gray-600">${s.group || '未分組'}</span></td>
+                        <td class="px-4 py-2.5 text-center font-mono">${Math.round(item.attRate)}%</td>
+                        <td class="px-4 py-2.5 text-center font-mono font-bold bg-blue-50/40">${Math.round(item.attScore)}</td>
+                        ${projects.map(p => `<td class="px-3 py-2.5 text-center font-mono text-gray-500">${s.presentationScores?.[p] ?? '-'}</td>`).join('')}
+                        <td class="px-4 py-2.5 text-center font-mono font-bold bg-indigo-50/30">${Math.round(item.projectBaseAvg)}</td>
+                        <td class="px-4 py-2.5 text-center font-mono text-purple-600 font-bold" title="貢獻:${s.peerEval.contribution}/配合:${s.peerEval.communication}/準時:${s.peerEval.punctuality}">${Math.round(item.personalPeerScore)}</td>
+                        <td class="px-4 py-2.5 text-center">
+                            ${item.contributionCoefficient !== null
+                                ? `<span class="font-mono font-bold text-purple-700">${item.contributionCoefficient.toFixed(2)}</span>
+                                   <div class="mt-0.5"><span class="px-1.5 py-0.5 rounded-full text-2xs font-medium ${item.contributionInfo.color}" title="原始係數: ${item.contributionRaw.toFixed(2)}">${item.contributionInfo.label}</span></div>`
+                                : `<span class="text-gray-300">-</span>`}
+                        </td>
+                        <td class="px-4 py-2.5 text-center font-mono text-purple-700 font-extrabold bg-purple-50/40">${Math.round(item.finalProjectScore)}</td>
+                        <td class="px-4 py-2.5 text-center font-mono font-bold bg-indigo-50/30">${item.projectWeighted.toFixed(1)}</td>
+                        <td class="px-4 py-2.5 text-center font-mono">${s.bonusCount || 0} 次</td>
+                        <td class="px-4 py-2.5 text-center font-mono font-bold bg-amber-50/40">${item.partScore}</td>
+                        <td class="px-4 py-2.5 text-right font-mono font-extrabold text-xs ${isWarning ? 'text-red-600' : 'text-blue-700'}">
+                            ${item.finalGrade.toFixed(1)} 分
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += `</tbody></table>`;
+            wrapper.innerHTML = tableHtml;
+        }
+
+        // --- 權重聯動即時調整功能 ---
+        function syncWeightsUI() {
+            const course = getActiveCourse();
+            document.getElementById('weight-att').value = course.weights.att;
+            document.getElementById('weight-pres').value = course.weights.pres;
+            document.getElementById('weight-part').value = course.weights.part;
+            
+            document.getElementById('weight-att-val').innerText = course.weights.att;
+            document.getElementById('weight-pres-val').innerText = course.weights.pres;
+            document.getElementById('weight-part-val').innerText = course.weights.part;
+
+            document.querySelectorAll('.formula-weight-att').forEach(el=>el.innerText = course.weights.att);
+            document.querySelectorAll('.formula-weight-pres').forEach(el=>el.innerText = course.weights.pres);
+            document.querySelectorAll('.formula-weight-part').forEach(el=>el.innerText = course.weights.part);
+        }
+
+        function updateWeights() {
+            const att = parseInt(document.getElementById('weight-att').value);
+            const pres = parseInt(document.getElementById('weight-pres').value);
+            const part = parseInt(document.getElementById('weight-part').value);
+            const total = att + pres + part;
+
+            document.getElementById('weight-att-val').innerText = att;
+            document.getElementById('weight-pres-val').innerText = pres;
+            document.getElementById('weight-part-val').innerText = part;
+
+            const totalEl = document.getElementById('weight-total');
+            totalEl.innerText = `${total}%`;
+
+            if(total === 100) {
+                totalEl.className = "text-green-600 font-bold";
+                const course = getActiveCourse();
+                course.weights = { att, pres, part };
+                saveAllDataToStorage();
+                
+                document.querySelectorAll('.formula-weight-att').forEach(el=>el.innerText = att);
+                document.querySelectorAll('.formula-weight-pres').forEach(el=>el.innerText = pres);
+                document.querySelectorAll('.formula-weight-part').forEach(el=>el.innerText = part);
+                
+                if(currentActiveTab === 'grades') renderGradesTable();
+            } else {
+                totalEl.className = "text-red-500 animate-pulse font-bold";
+            }
+        }
+
+        // --- 7. SheetJS 點名冊範本生成與 Excel 智慧辨識匯入 ---
+        function downloadSampleExcel() {
+            const course = getActiveCourse();
+            const headers = [["No.", "班級", "學號", "姓名"]];
+            const sampleRows = [
+                [1, "資工三甲", "1120101", "陳大同"],
+                [2, "資工三甲", "1120102", "林小美"],
+                [3, "資工三乙", "1120205", "張學友"]
+            ];
+            
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(headers.concat(sampleRows));
+            XLSX.utils.book_append_sheet(wb, ws, "修課學生名冊範本");
+            XLSX.writeFile(wb, `${course.name}_標準點名冊範本.xlsx`);
+            showToast("成功在前端動態組裝並下載 Excel 範本！", "success");
+        }
+
+        let pendingImportData = null;
+        function handleExcelImport(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+                    if(json.length <= 1) { showToast("Excel 內好像沒有足夠的修課紀錄列！", "error"); return; }
+                    
+                    const headerRow = json[0].map(h => String(h).trim());
+                    const idxNo = headerRow.findIndex(h => h.toLowerCase() === "no.");
+                    const idxClass = headerRow.indexOf("班級");
+                    const idxId = headerRow.indexOf("學號");
+                    const idxName = headerRow.indexOf("姓名");
+
+                    if(idxClass === -1 || idxId === -1 || idxName === -1) {
+                        showToast("欄位名稱不符！必須包含「班級」、「學號」、「姓名」標題！", "error");
+                        return;
+                    }
+
+                    const parsedStudents = [];
+                    for(let i=1; i<json.length; i++) {
+                        const row = json[i];
+                        if(!row[idxId] || !row[idxName]) continue;
+                        
+                        parsedStudents.push({
+                            no: idxNo !== -1 ? parseInt(row[idxNo]) || i : i,
+                            class: String(row[idxClass]).trim(),
+                            id: String(row[idxId]).trim(),
+                            name: String(row[idxName]).trim(),
+                            group: "未分組",
+                            attendance: {}, bonusCount: 0, presentationScores: {},
+                            peerEval: { contribution: 80, communication: 80, punctuality: 80 }
+                        });
+                    }
+
+                    pendingImportData = parsedStudents;
+                    document.getElementById('import-choice-modal').classList.remove('hidden');
+                } catch(err) {
+                    showToast("檔案讀取失敗，請確認是否為乾淨的標準 Excel 或 CSV 點名單", "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = "";
+        }
+
+        function closeImportChoiceModal() { document.getElementById('import-choice-modal').classList.add('hidden'); pendingImportData = null; }
+
+        document.getElementById('import-append-btn').onclick = () => {
+            if(!pendingImportData) return;
+            const course = getActiveCourse();
+            let skipCount = 0;
+            let addCount = 0;
+            
+            pendingImportData.forEach(newS => {
+                if(course.students.some(s => s.id === newS.id)) {
+                    skipCount++;
+                } else {
+                    course.students.push(newS);
+                    addCount++;
+                }
+            });
+            saveAllDataToStorage();
+            closeImportChoiceModal();
+            renderRosterTable();
+            showToast(`追加匯入完畢：成功新增 ${addCount} 人，自動略過學號重複者 ${skipCount} 人。`, "success");
+        };
+
+        document.getElementById('import-overwrite-btn').onclick = () => {
+            if(!pendingImportData) return;
+            const course = getActiveCourse();
+            course.students = pendingImportData;
+            saveAllDataToStorage();
+            closeImportChoiceModal();
+            renderRosterTable();
+            showToast(`覆寫成功！已為【${course.name}】替換全新的 ${course.students.length} 名修課名冊大表。`, "success");
+        };
+
+        // --- STREAMING_CHUNK: Exporting grader table data to CSV format... ---
+        // --- 8. 成績單學期大表 CSV 匯出邏輯 (同步更新互評模式切換計算) ---
+        function exportToCSV() {
+            const course = getActiveCourse();
+            if(course.students.length === 0) { showToast("目前無任何數據可供導出！", "error"); return; }
+            
+            const projects = course.projects || [];
+            const peerEvalMode = course.peerEvalMode || "none";
+            
+            let csvContent = "\uFEFF"; // UTF-8 BOM 防止 Excel 亂碼
+            const headers = ["No.", "班級", "學號", "姓名", "分組", "歷史出席率", "出席評估分"];
+            projects.forEach(p => headers.push(`報告原始:${p}`));
+            headers.push("報告項目平均基分", "團隊互評分", "貢獻係數(原始)", "貢獻係數(採計0.8~1.2)", "貢獻等級", "報告最終實得", "發言次數", "發言評估分", "學期加權總成績");
+            
+            csvContent += headers.join(",") + "\n";
+
+            const sorted = [...course.students].sort((x, y) => (x.no || 0) - (y.no || 0));
+
+            // 小組互評均分字典
+            const groupPeerAverages = {};
+            const uniqueGroups = Array.from(new Set(course.students.map(s => s.group).filter(g => g && g !== "未分組")));
+            uniqueGroups.forEach(g => {
+                const members = course.students.filter(s => s.group === g);
+                let sum = 0;
+                members.forEach(m => {
+                    if(!m.peerEval) m.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+                    sum += (m.peerEval.contribution + m.peerEval.communication + m.peerEval.punctuality) / 3;
+                });
+                groupPeerAverages[g] = members.length > 0 ? (sum / members.length) : 80;
+            });
+
+            sorted.forEach(s => {
+                let totalSlots = 0, attendedSlots = 0;
+                if(s.attendance) {
+                    Object.values(s.attendance).forEach(v => {
+                        totalSlots++;
+                        if(v === "出席") attendedSlots++;
+                        else if(v === "遲到") attendedSlots += 0.7;
+                    });
+                }
+                const attRate = totalSlots > 0 ? (attendedSlots / totalSlots) * 100 : 100;
+
+                let pSum = 0, pCount = 0;
+                const rowScores = [];
+                projects.forEach(p => {
+                    const sc = s.presentationScores?.[p];
+                    if(sc !== undefined && sc !== null) {
+                        pSum += sc; pCount++;
+                        rowScores.push(sc);
+                    } else {
+                        rowScores.push("");
+                    }
+                });
+                const projectBaseAvg = pCount > 0 ? (pSum / pCount) : 0;
+
+                if(!s.peerEval) s.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+                const personalPeerScore = (s.peerEval.contribution + s.peerEval.communication + s.peerEval.punctuality) / 3;
+                
+                let finalProjectScore = projectBaseAvg;
+                let contributionRaw = "";
+                let contributionCoefficient = "";
+                let contributionLabel = "";
+                
+                // CSV 匯出邏輯：依據互評模式決定是否調幅小組報告分數，並限制係數於0.8~1.2之間
+                if (peerEvalMode === "average") {
+                    if (s.group && s.group !== "未分組" && groupPeerAverages[s.group] > 0) {
+                        const rawCoef = personalPeerScore / groupPeerAverages[s.group];
+                        const appliedCoef = Math.min(CONTRIBUTION_COEFFICIENT_MAX, Math.max(CONTRIBUTION_COEFFICIENT_MIN, rawCoef));
+                        contributionRaw = rawCoef.toFixed(2);
+                        contributionCoefficient = appliedCoef.toFixed(2);
+                        contributionLabel = getContributionLabel(rawCoef).label;
+                        finalProjectScore = Math.min(100, projectBaseAvg * appliedCoef);
+                    }
+                } else {
+                    finalProjectScore = projectBaseAvg;
+                }
+                
+                const partScore = Math.min(100, (s.bonusCount || 0) * 5);
+                const finalGrade = (attRate * (course.weights.att / 100)) + (finalProjectScore * (course.weights.pres / 100)) + (partScore * (course.weights.part / 100));
+
+                const rowData = [
+                    s.no || '',
+                    s.class,
+                    s.id,
+                    s.name,
+                    s.group || '未分組',
+                    Math.round(attRate) + "%",
+                    Math.round(attRate),
+                    ...rowScores,
+                    Math.round(projectBaseAvg),
+                    Math.round(personalPeerScore),
+                    contributionRaw,
+                    contributionCoefficient,
+                    contributionLabel,
+                    Math.round(finalProjectScore),
+                    s.bonusCount || 0,
+                    partScore,
+                    finalGrade.toFixed(1)
+                ];
+                csvContent += rowData.join(",") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `${course.name}_學期成績結算總表.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("學期成績大表 CSV 已成功匯出！", "success");
+        }
+
+        // --- 9. 內置優雅客製化確認對話方塊系統 ---
+        let customConfirmCallback = null;
+        function openCustomConfirm(title, message, onOk) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-message').innerText = message;
+            document.getElementById('custom-confirm-modal').classList.remove('hidden');
+            customConfirmCallback = onOk;
+        }
+        document.getElementById('confirm-cancel-btn').onclick = () => { document.getElementById('custom-confirm-modal').classList.add('hidden'); customConfirmCallback = null; };
+        document.getElementById('confirm-ok-btn').onclick = () => {
+            if(customConfirmCallback) customConfirmCallback();
+            document.getElementById('custom-confirm-modal').classList.add('hidden');
+            customConfirmCallback = null;
+        };
+
+        function triggerResetConfirm() {
+            const course = getActiveCourse();
+            openCustomConfirm("重設當前課程確認", `您確定要清除「${course.name}」中的所有人點名紀錄、加分及報告成績嗎？(此課程之學生名冊與互評模式將會予以保留)`, () => {
+                course.students.forEach(s => {
+                    s.attendance = {};
+                    s.bonusCount = 0;
+                    s.presentationScores = {};
+                    s.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+                });
+                saveAllDataToStorage();
+                refreshCurrentTab();
+                showToast("當前課程動態數據已全部初始化歸零", "info");
+            });
+        }
+
+        function showAttendanceHistoryModal(studentId) {
+            const course = getActiveCourse();
+            const student = course.students.find(s => s.id === studentId);
+            if(!student) return;
+
+            document.getElementById('history-modal-title').innerText = `【${student.name} (${student.id})】歷次出缺席紀錄明細`;
+            const content = document.getElementById('history-modal-content');
+            content.innerHTML = "";
+
+            const records = student.attendance || {};
+            const sortedDates = Object.keys(records).sort((a,b) => new Date(b) - new Date(a));
+
+            if (sortedDates.length === 0) {
+                content.innerHTML = `<p class="text-center text-gray-400 text-xs py-8"><i class="fa-regular fa-calendar-times mr-2 text-lg"></i>該學生目前尚無任何點名記錄。</p>`;
+            } else {
+                const listContainer = document.createElement('div');
+                listContainer.className = "divide-y divide-gray-100 text-xs";
+                sortedDates.forEach(date => {
+                    const status = records[date];
+                    const item = document.createElement('div');
+                    item.className = "py-2.5 flex items-center justify-between hover:bg-gray-50/50 px-2 rounded-lg transition";
+                    
+                    let badgeClass = "bg-green-100 text-green-800";
+                    if(status === "缺席") badgeClass = "bg-red-100 text-red-800";
+                    if(status === "遲到") badgeClass = "bg-amber-100 text-amber-800";
+
+                    item.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-regular fa-calendar text-gray-400"></i>
+                            <span class="font-mono font-medium text-gray-700">${date}</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="px-2 py-0.5 rounded-full font-medium ${badgeClass}">${status}</span>
+                            <select onchange="updatePastAttendance('${student.id}', '${date}', this.value)" class="border border-gray-200 rounded px-1.5 py-0.5 bg-white text-2xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="出席" ${status==='出席'?'selected':''}>出席</option>
+                                <option value="缺席" ${status==='缺席'?'selected':''}>缺席</option>
+                                <option value="遲到" ${status==='遲到'?'selected':''}>遲到</option>
+                            </select>
+                        </div>
+                    `;
+                    listContainer.appendChild(item);
+                });
+                content.appendChild(listContainer);
+            }
+
+            document.getElementById('attendance-history-modal').classList.remove('hidden');
+        }
+
+        // --- STREAMING_CHUNK: Handlers for UI closing and Toast messages... ---
+        function closeAttendanceHistoryModal() {
+            document.getElementById('attendance-history-modal').classList.add('hidden');
+        }
+
+        function updatePastAttendance(studentId, date, newStatus) {
+            const course = getActiveCourse();
+            const student = course.students.find(s => s.id === studentId);
+            if(student) {
+                if(!student.attendance) student.attendance = {};
+                student.attendance[date] = newStatus;
+                saveAllDataToStorage();
+                showAttendanceHistoryModal(studentId);
+                loadAttendanceDate();
+                showToast(`已成功修改 ${student.name} 於 ${date} 的狀態為 ${newStatus}`, "success");
+            }
+        }
+
+        // --- 10. 全非阻斷式 Toast 浮動視窗提示函式 ---
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `p-3 rounded-xl shadow-md text-white text-xs font-medium flex items-center space-x-2 transition-all transform translate-y-2 opacity-0 duration-300 pointer-events-auto min-w-[200px]`;
+            
+            let icon = `<i class="fa-solid fa-circle-info"></i>`;
+            if (type === "success") { toast.classList.add('bg-emerald-600'); icon = `<i class="fa-solid fa-circle-check"></i>`; }
+            else if (type === "error") { toast.classList.add('bg-red-600'); icon = `<i class="fa-solid fa-triangle-exclamation"></i>`; }
+            else if (type === "warning") { toast.classList.add('bg-amber-500'); icon = `<i class="fa-solid fa-circle-exclamation"></i>`; }
+            else { toast.classList.add('bg-slate-700'); }
+
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-1');
+                setTimeout(() => { toast.remove(); }, 300);
+            }, 3000);
+        }
+    </script>
+
+    <!-- GAS 後端原始碼區 (隱藏，僅供一鍵複製) -->
+    <textarea id="gas-code-source" class="hidden">/**
+ * 大學多課程評分系統 Google Apps Script 後端 (GAS)
+ * 
+ * 【部署說明】
+ * 1. 在您的 Google 雲端硬碟建立一個新的「Google 試算表 (Google Sheets)」。
+ * 2. 點選上方選單的「擴充功能」->「Apps Script」。
+ * 3. 將本程式碼 (Code.gs) 的所有內容完整複製，覆蓋貼上到 GAS 編輯器中。
+ * 4. 點選編輯器右上角的「部署」->「新增部署」。
+ * 5. 部署類型選擇「網頁應用程式 (Web App)」。
+ * 6. 設定以下部署內容：
+ *    - 說明：大學評分系統雲端 API
+ *    - 執行身分：我 (您的 Google 帳號)
+ *    - 誰有權限存取：任何人 (Anyone)
+ * 7. 點選「部署」，並在彈出的權限視窗中，點選您的帳號並授予授權（點選「進階」->「前往未命名的專案 (不安全)」以核准權限）。
+ * 8. 複製部署成功後產生的「網頁應用程式 URL」，並貼回網頁的【雲端同步】面板中即可開始同步！
+ */
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "success",
+    message: "大學多課程評分系統 GAS API 連線成功！系統運作正常。"
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    var requestData = JSON.parse(e.postData.contents);
+    var action = requestData.action;
+    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    
+    if (action === "test") {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "連線成功！已成功與您的 Google 試算表進行串接。"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    if (action === "upload") {
+      var configSheet = spreadsheet.getSheetByName("__CONFIG__");
+      if (!configSheet) {
+        configSheet = spreadsheet.insertSheet("__CONFIG__");
+        configSheet.hideSheet();
+      }
+      configSheet.clear();
+      configSheet.getRange(1, 1).setValue(JSON.stringify(requestData.payload));
+      
+      updateReports(spreadsheet, requestData.payload.courses);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "資料已成功備份至雲端，並自動更新試算表報表！"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    if (action === "download") {
+      var configSheet = spreadsheet.getSheetByName("__CONFIG__");
+      if (!configSheet) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "雲端尚無備份資料！請先從網頁上傳備份。"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      var jsonStr = configSheet.getRange(1, 1).getValue();
+      if (!jsonStr) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "雲端備份資料為空！"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        payload: JSON.parse(jsonStr)
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: "未知的 action 指令"
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: "後端執行出錯: " + error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function updateReports(spreadsheet, courses) {
+  var activeCourseNames = [];
+  for (var courseId in courses) {
+    activeCourseNames.push(courses[courseId].name);
+  }
+  
+  var sheets = spreadsheet.getSheets();
+  sheets.forEach(function(sheet) {
+    var name = sheet.getName();
+    if (name === "__CONFIG__") return;
+    
+    var isGradeSheet = name.indexOf("_成績總表") !== -1;
+    var isAttSheet = name.indexOf("_出缺席表") !== -1;
+    if (isGradeSheet || isAttSheet) {
+      var courseName = name.replace("_成績總表", "").replace("_出缺席表", "");
+      if (activeCourseNames.indexOf(courseName) === -1) {
+        try {
+          spreadsheet.deleteSheet(sheet);
+        } catch(e) {}
+      }
+    }
+  });
+  
+  for (var courseId in courses) {
+    var course = courses[courseId];
+    
+    var gradeSheetName = course.name + "_成績總表";
+    var gradeSheet = spreadsheet.getSheetByName(gradeSheetName) || spreadsheet.insertSheet(gradeSheetName);
+    gradeSheet.clear();
+    writeGradesToSheet(gradeSheet, course);
+    
+    var attSheetName = course.name + "_出缺席表";
+    var attSheet = spreadsheet.getSheetByName(attSheetName) || spreadsheet.insertSheet(attSheetName);
+    attSheet.clear();
+    writeAttendanceToSheet(attSheet, course);
+  }
+}
+
+function writeGradesToSheet(sheet, course) {
+  var weights = course.weights || { att: 20, pres: 40, part: 40 };
+  var projects = course.projects || [];
+  var students = course.students || [];
+  var peerEvalMode = course.peerEvalMode || "none";
+  
+  sheet.getRange(1, 1).setValue(course.name + " 學期加權成績大表")
+    .setFontSize(16)
+    .setFontWeight("bold")
+    .setFontColor("#1e3a8a");
+  
+  var maxCol = 16 + projects.length;
+  sheet.getRange(1, 1, 1, maxCol).merge();
+  
+  var formulaText = "★ 計分公式：學期總加權成績 = (出席得分 × " + weights.att + "%) + (報告最終實得 × " + weights.pres + "%) + (發言得分 × " + weights.part + "%)";
+  if (peerEvalMode === "average") {
+    formulaText += " | [小組互評機制：已啟用「平均貢獻度調幅」，報告最終實得 = 報告平均基分 × 個人貢獻係數 (限制於 0.80 ~ 1.20 之間)]";
+  } else {
+    formulaText += " | [小組互評機制：未啟用 (互評僅作參考，報告分數直接繼承小組基分)]";
+  }
+  sheet.getRange(2, 1).setValue(formulaText)
+    .setFontSize(9)
+    .setFontColor("#4b5563")
+    .setFontStyle("italic");
+  sheet.getRange(2, 1, 1, maxCol).merge();
+  
+  var headers = ["No.", "班級", "學號", "姓名", "分組", "歷史出席率", "出席評估分 (" + weights.att + "%)"];
+  projects.forEach(function(p) {
+    headers.push("報告原始:" + p);
+  });
+  headers.push("報告項目平均基分", "團隊互評得分", "個人貢獻係數", "報告最終實得", "報告加權分 (" + weights.pres + "%)", "發言次數", "發言評估分 (" + weights.part + "%)", "學期加權總成績");
+  
+  var headerRange = sheet.getRange(4, 1, 1, headers.length);
+  headerRange.setValues([headers])
+    .setBackground("#1e3a8a")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold")
+    .setFontSize(10)
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
+  sheet.setRowHeight(4, 28);
+  
+  if (students.length === 0) {
+    sheet.getRange(5, 1).setValue("當前課程尚無學生成冊資料。").setFontColor("#9ca3af").setFontStyle("italic");
+    return;
+  }
+  
+  var groupPeerAverages = {};
+  var uniqueGroups = [];
+  students.forEach(function(s) {
+    if (s.group && s.group !== "未分組" && uniqueGroups.indexOf(s.group) === -1) {
+      uniqueGroups.push(s.group);
+    }
+  });
+  
+  uniqueGroups.forEach(function(g) {
+    var members = students.filter(function(s) { return s.group === g; });
+    var sum = 0;
+    members.forEach(function(m) {
+      if (!m.peerEval) m.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+      sum += (m.peerEval.contribution + m.peerEval.communication + m.peerEval.punctuality) / 3;
+    });
+    groupPeerAverages[g] = members.length > 0 ? (sum / members.length) : 80;
+  });
+  
+  var rowsData = [];
+  var sortedStudents = students.slice().sort(function(a, b) {
+    return (a.no || 0) - (b.no || 0);
+  });
+  
+  sortedStudents.forEach(function(s, idx) {
+    var totalSlots = 0, attendedSlots = 0;
+    if (s.attendance) {
+      for (var date in s.attendance) {
+        totalSlots++;
+        var status = s.attendance[date];
+        if (status === "出席") attendedSlots++;
+        else if (status === "遲到") attendedSlots += 0.7;
+      }
+    }
+    var attRate = totalSlots > 0 ? (attendedSlots / totalSlots) * 100 : 100;
+    
+    var pSum = 0, pCount = 0;
+    var pScores = [];
+    projects.forEach(function(p) {
+      var sc = s.presentationScores ? s.presentationScores[p] : null;
+      if (sc !== undefined && sc !== null && sc !== "") {
+        pSum += sc;
+        pCount++;
+        pScores.push(sc);
+      } else {
+        pScores.push("");
+      }
+    });
+    var projectBaseAvg = pCount > 0 ? (pSum / pCount) : 0;
+    
+    if (!s.peerEval) s.peerEval = { contribution: 80, communication: 80, punctuality: 80 };
+    var personalPeerScore = (s.peerEval.contribution + s.peerEval.communication + s.peerEval.punctuality) / 3;
+    
+    var finalProjectScore = projectBaseAvg;
+    var appliedCoef = 1.0;
+    if (peerEvalMode === "average") {
+      if (s.group && s.group !== "未分組" && groupPeerAverages[s.group] > 0) {
+        var rawCoef = personalPeerScore / groupPeerAverages[s.group];
+        appliedCoef = Math.min(1.2, Math.max(0.8, rawCoef));
+        finalProjectScore = Math.min(100, projectBaseAvg * appliedCoef);
+      }
+    }
+    var projectWeighted = finalProjectScore * (weights.pres / 100);
+    
+    var bonusCount = s.bonusCount || 0;
+    var partScore = Math.min(100, bonusCount * 5);
+    
+    var finalGrade = (attRate * (weights.att / 100)) + (finalProjectScore * (weights.pres / 100)) + (partScore * (weights.part / 100));
+    
+    var row = [
+      s.no || (idx + 1),
+      s.class || "",
+      s.id || "",
+      s.name || "",
+      s.group || "未分組",
+      Math.round(attRate) + "%",
+      Math.round(attRate)
+    ];
+    
+    pScores.forEach(function(score) {
+      row.push(score === "" ? "-" : score);
+    });
+    
+    row.push(
+      Math.round(projectBaseAvg),
+      Math.round(personalPeerScore),
+      peerEvalMode === "average" && s.group !== "未分組" ? Number(appliedCoef.toFixed(2)) : "-",
+      Math.round(finalProjectScore),
+      Number(projectWeighted.toFixed(1)),
+      bonusCount,
+      partScore,
+      Number(finalGrade.toFixed(1))
+    );
+    
+    rowsData.push(row);
+  });
+  
+  var dataRange = sheet.getRange(5, 1, rowsData.length, headers.length);
+  dataRange.setValues(rowsData)
+    .setFontSize(9)
+    .setVerticalAlignment("middle");
+  
+  sheet.getRange(5, 1, rowsData.length, 5).setHorizontalAlignment("left");
+  sheet.getRange(5, 6, rowsData.length, headers.length - 5).setHorizontalAlignment("center");
+  sheet.getRange(5, headers.length, rowsData.length, 1).setHorizontalAlignment("right").setFontWeight("bold");
+  
+  dataRange.setBorder(true, true, true, true, true, true, "#e5e7eb", SpreadsheetApp.BorderStyle.SOLID);
+  
+  var finalGradesRange = sheet.getRange(5, headers.length, rowsData.length, 1);
+  var rule = SpreadsheetApp.newConditionalFormatRule()
+    .whenNumberLessThan(60)
+    .setBackground("#fee2e2")
+    .setFontColor("#b91c1c")
+    .setRanges([finalGradesRange])
+    .build();
+  var rules = sheet.getConditionalFormatRules();
+  rules.push(rule);
+  sheet.setConditionalFormatRules(rules);
+  
+  for (var col = 1; col <= headers.length; col++) {
+    sheet.autoResizeColumn(col);
+    var currentWidth = sheet.getColumnWidth(col);
+    sheet.setColumnWidth(col, currentWidth + 12);
+  }
+}
+
+function writeAttendanceToSheet(sheet, course) {
+  var students = course.students || [];
+  
+  sheet.getRange(1, 1).setValue(course.name + " 學生出缺席點名大表")
+    .setFontSize(16)
+    .setFontWeight("bold")
+    .setFontColor("#1e3a8a");
+  
+  var datesSet = [];
+  students.forEach(function(s) {
+    if (s.attendance) {
+      for (var d in s.attendance) {
+        if (datesSet.indexOf(d) === -1) {
+          datesSet.push(d);
+        }
+      }
+    }
+  });
+  datesSet.sort(function(a, b) {
+    return new Date(a) - new Date(b);
+  });
+  
+  var maxCol = 5 + datesSet.length;
+  sheet.getRange(1, 1, 1, maxCol).merge();
+  
+  sheet.getRange(2, 1).setValue("★ 點名狀態著色說明：出席 (綠色)、遲到 (黃色)、缺席 (紅色) | 點名歷史會即時且完整呈呈現。")
+    .setFontSize(9)
+    .setFontColor("#4b5563")
+    .setFontStyle("italic");
+  sheet.getRange(2, 1, 1, maxCol).merge();
+  
+  var headers = ["No.", "班級", "學號", "姓名", "分組"];
+  datesSet.forEach(function(date) {
+    headers.push(date);
+  });
+  
+  var headerRange = sheet.getRange(4, 1, 1, headers.length);
+  headerRange.setValues([headers])
+    .setBackground("#1e3a8a")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold")
+    .setFontSize(10)
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
+  sheet.setRowHeight(4, 28);
+  
+  if (students.length === 0) {
+    sheet.getRange(5, 1).setValue("當前課程尚無學生成冊資料。").setFontColor("#9ca3af").setFontStyle("italic");
+    return;
+  }
+  
+  var sortedStudents = students.slice().sort(function(a, b) {
+    return (a.no || 0) - (b.no || 0);
+  });
+  
+  var rowsData = [];
+  sortedStudents.forEach(function(s, idx) {
+    var row = [
+      s.no || (idx + 1),
+      s.class || "",
+      s.id || "",
+      s.name || "",
+      s.group || "未分組"
+    ];
+    
+    datesSet.forEach(function(date) {
+      var status = s.attendance ? s.attendance[date] : null;
+      row.push(status || "未點名");
+    });
+    
+    rowsData.push(row);
+  });
+  
+  var dataRange = sheet.getRange(5, 1, rowsData.length, headers.length);
+  dataRange.setValues(rowsData)
+    .setFontSize(9)
+    .setVerticalAlignment("middle");
+  
+  sheet.getRange(5, 1, rowsData.length, 5).setHorizontalAlignment("left");
+  if (datesSet.length > 0) {
+    sheet.getRange(5, 6, rowsData.length, datesSet.length).setHorizontalAlignment("center");
+  }
+  
+  dataRange.setBorder(true, true, true, true, true, true, "#e5e7eb", SpreadsheetApp.BorderStyle.SOLID);
+  
+  if (datesSet.length > 0) {
+    var statusRange = sheet.getRange(5, 6, rowsData.length, datesSet.length);
+    var rules = sheet.getConditionalFormatRules();
+    
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("出席")
+      .setBackground("#dcfce7")
+      .setFontColor("#15803d")
+      .setRanges([statusRange])
+      .build());
+      
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("遲到")
+      .setBackground("#fef3c7")
+      .setFontColor("#b45309")
+      .setRanges([statusRange])
+      .build());
+      
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo("缺席")
+      .setBackground("#fee2e2")
+      .setFontColor("#b91c1c")
+      .setRanges([statusRange])
+      .build());
+      
+    sheet.setConditionalFormatRules(rules);
+  }
+  
+  for (var col = 1; col <= headers.length; col++) {
+    sheet.autoResizeColumn(col);
+    var currentWidth = sheet.getColumnWidth(col);
+    sheet.setColumnWidth(col, currentWidth + 12);
+  }
+}</textarea>
+</body>
+</html>
